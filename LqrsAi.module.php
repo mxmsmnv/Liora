@@ -136,7 +136,7 @@ class LqrsAi extends WireData implements Module {
 
     protected function squad(): ?object {
         try {
-            $modules = $this->wire()->modules;
+            $modules = $this->wire('modules');
             if(!$modules->isInstalled('Squad')) return null;
             $squad = $modules->get('Squad');
             return is_object($squad) && method_exists($squad, 'ask') ? $squad : null;
