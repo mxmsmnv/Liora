@@ -1,0 +1,33 @@
+.liora-widget {
+    --liora-accent: #e11d48;
+    --liora-accent-dark: #be123c;
+    background: #fff;
+    border: 1px solid #e7e5e4;
+    border-radius: 1rem;
+    box-shadow: 0 12px 30px rgba(41, 37, 36, .08);
+    color: #292524;
+    overflow: hidden;
+}
+.liora-widget__header { display:flex; gap:1rem; padding:1.25rem; background:linear-gradient(135deg,#fff1f2,#fff); }
+.liora-widget__header h2 { margin:0 0 .3rem; font-size:1.25rem; line-height:1.2; }
+.liora-widget__header p { margin:0; color:#57534e; }
+.liora-widget__icon { display:grid; place-items:center; flex:0 0 2.5rem; height:2.5rem; border-radius:999px; background:var(--liora-accent); color:#fff; font-size:1.35rem; }
+.liora-widget__messages:empty { display:none; }
+.liora-widget__messages { max-height:28rem; overflow:auto; padding:1rem 1.25rem 0; background:#fafaf9; }
+.liora-message { max-width:46rem; margin:0 0 1rem; padding:.75rem 1rem; border-radius:.85rem; white-space:pre-wrap; }
+.liora-message--user { margin-left:auto; background:var(--liora-accent); color:#fff; }
+.liora-message--assistant { background:#fff; border:1px solid #e7e5e4; }
+.liora-message--error { background:#fff1f2; border:1px solid #fecdd3; color:#9f1239; }
+.liora-widget__form { display:flex; gap:.65rem; padding:1rem 1.25rem .5rem; }
+.liora-widget__form input { min-width:0; flex:1; padding:.8rem 1rem; border:1px solid #d6d3d1; border-radius:.65rem; font:inherit; }
+.liora-widget__form input:focus { outline:2px solid #fecdd3; border-color:var(--liora-accent); }
+.liora-widget__form button { border:0; border-radius:.65rem; padding:.8rem 1.25rem; background:var(--liora-accent); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+.liora-widget__form button:hover { background:var(--liora-accent-dark); }
+.liora-widget__form button:disabled, .liora-widget__form input:disabled { cursor:wait; opacity:.6; }
+.liora-widget__note { margin:.25rem 1.25rem 1rem; color:#78716c; font-size:.75rem; }
+.liora-widget--compact { box-shadow:none; }
+.liora-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+@media (max-width: 640px) {
+    .liora-widget__form { flex-direction:column; }
+    .liora-widget__form button { width:100%; }
+}

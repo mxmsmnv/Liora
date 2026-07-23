@@ -1,15 +1,23 @@
-# LqrsAi agent guide
+# Liora agent guide
 
-`LqrsAi` is an LQRS-specific application facade over Squad.
+Liora is an LQRS-owned ProcessWire module for AI assistance and measurable
+content demand. Squad remains the only credential/provider transport layer.
 
-- Keep provider credentials and default model selection in Squad.
-- Do not add API-key fields or persist credentials in this module.
-- Preserve the public response shape used by LQRS templates and CLI scripts:
-  `success`, `status`, `error`, optional `content`, and optional `data`.
-- Keep public error messages generic; provider details belong in protected logs.
-- Use `chat()` for OpenAI-style message arrays and `ask()`/`complete()` for
-  one-shot prompts.
-- Site-specific prompts remain in LQRS templates or task code, not module core.
-- Update the module version and changelog for behavior changes.
-- Validate with `php -l LqrsAi.module.php`, a real ProcessWire installation,
-  and a minimal provider request only when provider use has been authorized.
+## Invariants
+
+- Never store API keys or plaintext session identifiers.
+- Do not record raw IP addresses or user agents.
+- Keep public output escaped and treat model responses as untrusted text.
+- All admin mutations must use POST and ProcessWire CSRF validation.
+- Preserve tracked questions on uninstall unless the owner explicitly enables
+  the destructive uninstall setting.
+- Keep templates thin; endpoint, widget and tracking behavior belongs here.
+
+## Validation
+
+- Lint every PHP file.
+- Run `php tests/run.php`.
+- Install `Liora`, `InputfieldLiora`, and `ProcessLiora` in a real ProcessWire
+  site and verify the storage table.
+- Exercise one real Squad request and verify that it appears in Liora Insights.
+- Verify the public widget with JavaScript enabled and no console errors.

@@ -1,34 +1,41 @@
-# LQRS AI
+# Liora
 
-`LqrsAi` is the site-level AI facade for LQRS. It keeps public templates and
-CLI scripts independent from provider SDKs while delegating credentials,
-provider selection, and model selection to [Squad](https://github.com/mxmsmnv/Squad).
+Liora is a ProcessWire AI answer CTA and visitor-demand analytics module for
+LQRS. It helps a visitor when a search or page does not answer their question,
+then records the question so editors can improve the underlying site content.
+
+Squad owns provider credentials and transport. Liora adds:
+
+- a reusable `InputfieldLiora` and frontend widget;
+- selectable active provider/model settings;
+- configurable prompt, token, timeout, cache, rate-limit and CTA settings;
+- privacy-conscious question tracking without raw IP addresses;
+- a **Setup → Liora Insights** review dashboard;
+- import of the legacy `ai` ProFields Table history.
+
+## Template API
 
 ```php
-$ai = $modules->get('LqrsAi');
+$liora = $modules->get('Liora');
 
-$result = $ai->chat([
-    ['role' => 'system', 'content' => 'Answer concisely.'],
-    ['role' => 'user', 'content' => 'What is mezcal?'],
+echo $liora->renderWidget([
+    'originalQuery' => $searchQuery,
+    'context' => $page->template->name,
+    'pageId' => $page->id,
 ]);
-
-if($result['success']) echo $result['content'];
 ```
 
-## Contract
+The JSON endpoint template only needs:
 
-- `isConfigured(): bool`
-- `getModel(string $profile = 'default'): string`
-- `ask(string $message, array $options = []): array`
-- `complete(string $message, array $options = []): string|false`
-- `chat(array $messages, array $options = []): array`
+```php
+$modules->get('Liora')->handleEndpoint();
+```
 
-The module stores no API keys. Configure the active key, provider, and model in
-Squad. Errors returned to public application code are deliberately normalized
-so provider diagnostics and credentials are not exposed.
+Direct application calls remain available:
 
-## Requirements
+```php
+$result = $liora->ask('Suggest a food pairing.');
+$text = $liora->complete('Explain the difference between Cognac and Armagnac.');
+```
 
-- ProcessWire 3.0.210+
-- PHP 8.1+
-- Squad with an active default provider key
+Never store provider credentials in Liora. Configure them in Squad.
