@@ -49,6 +49,14 @@ $text = $liora->complete('Explain the difference between Cognac and Armagnac.');
 
 Never store provider credentials in Liora. Configure them in Squad.
 
+Enable **Keep visitors on this website** to append an editable stay-on-site
+instruction to the system prompt. Liora then avoids recommending external
+websites, retailers, marketplaces and off-site services. As a deterministic
+backstop, external absolute URLs and Markdown links are filtered from completed
+answers while same-site URLs and verified Atlas sources remain available.
+Provider deltas are buffered before display when this policy is enabled so an
+unchecked external URL cannot appear briefly during streaming.
+
 Superusers can delete individual messages in **Setup → Liora Insights**.
 Non-superusers need both `liora-review` to open the dashboard and
 `liora-delete` to see and use the delete action. Deletion is a server-side,

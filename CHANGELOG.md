@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.1 - 2026-07-23
+
+- Added a configurable stay-on-site policy and editable prompt instruction.
+- Added deterministic server-side filtering for external absolute URLs and Markdown links.
+- Preserved same-site links and verified Atlas source links.
+- Buffered provider deltas while the policy is enabled so unchecked external URLs are never exposed mid-stream.
+
 ## 1.4.0 - 2026-07-23
 
 - Added configurable copy actions to visitor chat messages.

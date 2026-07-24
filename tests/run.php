@@ -29,9 +29,9 @@ $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 140")
-        && str_contains($inputfield, "'version' => 140")
-        && str_contains($process, "'version' => 140"),
+    'release versions' => str_contains($module, "'version' => 141")
+        && str_contains($inputfield, "'version' => 141")
+        && str_contains($process, "'version' => 141"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -61,6 +61,11 @@ $checks = [
     'thinking state' => str_contains($module, "'data-thinking-label'")
         && str_contains($javascript, 'liora-message--thinking')
         && !str_contains($javascript, "submit.textContent = '…'"),
+    'stay-on-site policy' => str_contains($module, "attr('name', 'restrictExternalLinks')")
+        && str_contains($module, "attr('name', 'externalLinksPrompt')")
+        && str_contains($module, 'defaultExternalLinksPrompt()')
+        && str_contains($module, 'restrictExternalLinks(')
+        && str_contains($module, 'isSameSiteUrl('),
     'JSON widget theme' => is_array($theme) && !empty($theme['variables']['messagesMaxHeight'])
         && str_contains($module, 'themeStyle('),
     'welcome preview' => str_contains($module, "attr('name', 'showWelcomeMessage')")

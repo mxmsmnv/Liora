@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.4.0
+ * @version 1.4.1
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 140,
+            'version' => 141,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -172,7 +172,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             );
         }
 
-        $content = trim((string)($result['content'] ?? ''));
+        $content = $this->restrictExternalLinks(trim((string)($result['content'] ?? '')));
         if($content === '') {
             return $this->errorResponse('The AI provider returned an invalid response');
         }
@@ -208,7 +208,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
         $model = $this->getModel((string)($options['model'] ?? 'default'));
         $provider = trim((string)($options['squad_provider'] ?? $options['provider'] ?? $this->getProvider()));
-        $result = (array)$squad->stream($current, $onDelta, [
+        $restrictExternalLinks = (bool)$this->setting('restrictExternalLinks', true);
+        $providerDelta = $restrictExternalLinks
+            ? static function(string $delta): void {}
+            : $onDelta;
+        $result = (array)$squad->stream($current, $providerDelta, [
             'provider' => $provider,
             'model' => $model,
             'systemPrompt' => $systemPrompt,
@@ -220,11 +224,13 @@ class Liora extends WireData implements Module, ConfigurableModule {
         if(empty($result['success'])) {
             return $this->errorResponse($this->safeSquadError((string)($result['message'] ?? '')));
         }
+        $content = $this->restrictExternalLinks((string)($result['content'] ?? ''));
+        if($restrictExternalLinks && $content !== '') $onDelta($content);
         return [
             'success' => true,
             'status' => 200,
             'error' => '',
-            'content' => (string)($result['content'] ?? ''),
+            'content' => $content,
             'data' => [
                 'provider' => (string)($result['provider'] ?? $provider),
                 'model' => (string)($result['model'] ?? $model),
@@ -554,6 +560,22 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->label = $this->_('System prompt');
         $field->attr('rows', 8);
         $field->attr('value', (string)$this->setting('systemPrompt', $this->defaultSystemPrompt()));
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'restrictExternalLinks');
+        $field->label = $this->_('Keep visitors on this website');
+        $field->description = $this->_('Prevents Liora from directing visitors to external websites. Same-site Atlas sources remain available.');
+        if((bool)$this->setting('restrictExternalLinks', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldTextarea');
+        $field->attr('name', 'externalLinksPrompt');
+        $field->label = $this->_('Stay-on-site instruction');
+        $field->description = $this->_('Appended to the system prompt when the option above is enabled. External absolute URLs are also filtered server-side.');
+        $field->attr('rows', 5);
+        $field->attr('value', (string)$this->setting('externalLinksPrompt', $this->defaultExternalLinksPrompt()));
+        $field->showIf = 'restrictExternalLinks=1';
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldInteger');
@@ -1237,6 +1259,13 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'content' => $content,
             ];
         }
+        if((bool)$this->setting('restrictExternalLinks', true)) {
+            $instruction = trim((string)$this->setting(
+                'externalLinksPrompt',
+                $this->defaultExternalLinksPrompt()
+            ));
+            if($instruction !== '') $systemParts[] = $instruction;
+        }
         if(!$history) return ['', [], trim(implode("\n\n", $systemParts))];
         $current = array_pop($history);
         if($current['role'] !== 'user') {
@@ -1258,6 +1287,41 @@ class Liora extends WireData implements Module, ConfigurableModule {
             }
         }
         return trim(implode("\n", array_filter($parts, 'strlen')));
+    }
+
+    protected function restrictExternalLinks(string $content): string {
+        $content = trim($content);
+        if($content === '' || !(bool)$this->setting('restrictExternalLinks', true)) return $content;
+
+        $content = preg_replace_callback(
+            '~\[([^\]\r\n]+)\]\((https?:)?//([^)[:space:]]+)\)~iu',
+            function(array $match): string {
+                $url = ($match[2] ?? '') . '//' . ($match[3] ?? '');
+                return $this->isSameSiteUrl($url) ? $match[0] : trim((string)$match[1]);
+            },
+            $content
+        ) ?? $content;
+
+        $content = preg_replace_callback(
+            '~(?<![\w@])(?:https?:)?//[^\s<>()\]]+~iu',
+            fn(array $match): string => $this->isSameSiteUrl($match[0]) ? $match[0] : '',
+            $content
+        ) ?? $content;
+
+        $content = preg_replace('/[ \t]{2,}/u', ' ', $content) ?? $content;
+        $content = preg_replace('/ +([,.;:!?])/u', '$1', $content) ?? $content;
+        return trim($content);
+    }
+
+    protected function isSameSiteUrl(string $url): bool {
+        $url = trim($url);
+        if(str_starts_with($url, '//')) $url = 'https:' . $url;
+        $host = strtolower((string)(parse_url($url, PHP_URL_HOST) ?? ''));
+        if($host === '') return false;
+        $siteHost = strtolower(preg_replace('/:\d+$/', '', (string)$this->wire('config')->httpHost));
+        return $host === $siteHost
+            || $host === 'www.' . $siteHost
+            || ('www.' . $host) === $siteHost;
     }
 
     protected function sanitizeSourceUrl(string $url): string {
@@ -1465,6 +1529,15 @@ JS;
             . 'Reply in the same language as the visitor unless they explicitly request another language. '
             . 'Use clear Markdown and no more than 250 words. Do not invent product availability, prices, ratings or facts. '
             . 'When uncertain, say so. Suggest relevant ways the visitor could refine their search. Promote responsible drinking.';
+    }
+
+    protected function defaultExternalLinksPrompt(): string {
+        return 'Keep the visitor on this website. Do not recommend, mention, or link to external websites, '
+            . 'retailers, marketplaces, search engines, social networks, or other off-site services. '
+            . 'Do not output external URLs or domain names. When useful, direct the visitor only to relevant '
+            . 'pages from this website that are supplied in the context. If the requested information is not '
+            . 'available here, say so clearly and suggest how the visitor can refine the question without '
+            . 'sending them elsewhere.';
     }
 
     protected function errorResponse(string $message): array {
