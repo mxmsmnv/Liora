@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.6.1
+ * @version 1.7.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 161,
+            'version' => 170,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -208,11 +208,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
         $model = $this->getModel((string)($options['model'] ?? 'default'));
         $provider = trim((string)($options['squad_provider'] ?? $options['provider'] ?? $this->getProvider()));
-        $restrictExternalLinks = (bool)$this->setting('restrictExternalLinks', true);
-        $providerDelta = $restrictExternalLinks
-            ? static function(string $delta): void {}
-            : $onDelta;
-        $result = (array)$squad->stream($current, $providerDelta, [
+        $result = (array)$squad->stream($current, $onDelta, [
             'provider' => $provider,
             'model' => $model,
             'systemPrompt' => $systemPrompt,
@@ -225,7 +221,6 @@ class Liora extends WireData implements Module, ConfigurableModule {
             return $this->errorResponse($this->safeSquadError((string)($result['message'] ?? '')));
         }
         $content = $this->restrictExternalLinks((string)($result['content'] ?? ''));
-        if($restrictExternalLinks && $content !== '') $onDelta($content);
         return [
             'success' => true,
             'status' => 200,
@@ -422,6 +417,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $this->storeAssistantMessage((int)$thread['id'], $answer, $data, $pageContext);
         $this->sendStreamEvent('done', [
             'thread_id' => $thread['public_id'],
+            'response' => $answer,
             'model' => (string)($data['model'] ?? $this->getModel()),
             'tokens_used' => (int)($data['usage']['total_tokens'] ?? 0),
             'rag_sources' => $ragSources,
@@ -634,6 +630,13 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->label = $this->_('Use Atlas retrieval for Liora answers');
         $field->description = $this->_('Retrieves relevant excerpts from an Atlas collection before asking the selected Squad model. Liora falls back to a normal answer when Atlas is unavailable or has no useful result.');
         if((bool)$this->setting('atlasEnabled', false)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'atlasFastRetrieval');
+        $field->label = $this->_('Prefer fast local Atlas retrieval');
+        $field->description = $this->_('Checks local significant-term matches first and uses semantic embeddings only when they are insufficient. This can remove several seconds from common questions.');
+        if((bool)$this->setting('atlasFastRetrieval', true)) $field->attr('checked', 'checked');
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldText');
@@ -1068,10 +1071,19 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $topK = max(1, min(10, (int)$this->setting('atlasTopK', 4)));
             $minimumScore = max(-1.0, min(1.0, (float)$this->setting('atlasMinScore', 0.2)));
             $maxChars = max(500, min(20000, (int)$this->setting('atlasMaxContextChars', 6000)));
-            $hits = (array)$atlas->search($collection, $question, $topK, [
-                'mmr' => true,
-                'mmrLambda' => 0.7,
-            ]);
+            $hits = [];
+            if((bool)$this->setting('atlasFastRetrieval', true)
+                && method_exists($atlas, 'lexicalSearch')) {
+                $hits = (array)$atlas->lexicalSearch($collection, $question, $topK, [
+                    'minScore' => 0.42,
+                ]);
+            }
+            if(!$hits) {
+                $hits = (array)$atlas->search($collection, $question, $topK, [
+                    'mmr' => true,
+                    'mmrLambda' => 0.7,
+                ]);
+            }
             if(!$hits) {
                 $error = method_exists($atlas, 'lastError') ? trim((string)$atlas->lastError()) : '';
                 if($error !== '') $this->logAtlasFallback($error);

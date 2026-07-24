@@ -17,7 +17,7 @@ Squad owns provider credentials and transport. Liora adds:
 - privacy-conscious demand tracking without raw IP addresses;
 - optional country and city enrichment when the GeoIP module is installed;
 - configurable welcome copy for an otherwise empty conversation;
-- optional retrieval-augmented answers from a selected Atlas collection;
+- optional lexical-first, semantic-fallback answers from a selected Atlas collection;
 - an editable, friendly quality-review notice below the widget;
 - native ProcessWire multi-language widget text with ready-made language presets;
 - a **Setup → Liora Insights** review dashboard;
@@ -78,8 +78,8 @@ instruction to the system prompt. Liora then avoids recommending external
 websites, retailers, marketplaces and off-site services. As a deterministic
 backstop, external absolute URLs and Markdown links are filtered from completed
 answers while same-site URLs and verified Atlas sources remain available.
-Provider deltas are buffered before display when this policy is enabled so an
-unchecked external URL cannot appear briefly during streaming.
+Provider deltas remain escaped and external links are never made clickable
+while streaming. The completed server-filtered answer replaces the draft.
 
 Superusers can delete individual messages in **Setup → Liora Insights**.
 Non-superusers need both `liora-review` to open the dashboard and
@@ -117,7 +117,9 @@ public-page excerpts, labels them as untrusted reference material and sends them
 to the selected Squad model with the visitor's question. Exact source links are
 shown below the answer.
 
-Atlas performs retrieval; Squad still generates the answer. If Atlas is missing,
+The default fast-retrieval option checks significant local terms first, usually
+in well under a second, and falls back to semantic embeddings when those
+matches are insufficient. Atlas performs retrieval; Squad still generates the answer. If Atlas is missing,
 not ready, empty or returns no sufficiently relevant excerpt, Liora continues
 with the regular non-RAG answer. Retrieved entries linked to ProcessWire pages
 are re-resolved and excluded unless the current page is public.

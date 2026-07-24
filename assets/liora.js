@@ -542,6 +542,10 @@
                             if(data.type === 'error') throw new Error(data.error || errorLabel);
                             if(data.type === 'done') {
                                 if(data.thread_id) currentThread.id = data.thread_id;
+                                if(typeof data.response === 'string' && data.response.trim()) {
+                                    assistantText = data.response;
+                                    updateMessage(assistantItem, assistantText);
+                                }
                                 if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
                                 tokensUsed = Math.max(0, Number(data.tokens_used || 0));
                             }

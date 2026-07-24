@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 161")
-        && str_contains($inputfield, "'version' => 161")
-        && str_contains($process, "'version' => 161"),
+    'release versions' => str_contains($module, "'version' => 170")
+        && str_contains($inputfield, "'version' => 170")
+        && str_contains($process, "'version' => 170"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -48,6 +48,8 @@ $checks = [
     'privacy storage' => str_contains($store, '`session_hash`') && !str_contains($store, '`ip_address`'),
     'GeoIP enrichment' => str_contains($module, "isInstalled('GeoIP')") && !str_contains($store, '`ip_address`'),
     'streaming endpoint' => str_contains($module, 'application/x-ndjson') && str_contains($module, 'streamChat('),
+    'streamed final answer replacement' => str_contains($module, "'response' => \$answer")
+        && str_contains($javascript, "typeof data.response === 'string'"),
     'local conversation history' => str_contains($javascript, 'localStorage') && str_contains($javascript, 'previousLabel'),
     'localized widget text' => str_contains($module, 'widgetTextDefaults()')
         && str_contains($module, 'getWidgetTextPresets()')
@@ -101,6 +103,9 @@ $checks = [
         && str_contains($module, 'atlasContext(')
         && str_contains($module, "'rag_sources'")
         && str_contains($javascript, 'rag_sources'),
+    'fast Atlas fallback' => str_contains($module, "attr('name', 'atlasFastRetrieval')")
+        && str_contains($module, "method_exists(\$atlas, 'lexicalSearch')")
+        && str_contains($module, "\$atlas->search("),
     'Inputfield class' => str_contains($inputfield, 'class InputfieldLiora extends Inputfield'),
     'integration guidance' => str_contains($module, 'integrationExamplesMarkup()')
         && str_contains($module, 'Allow the ready-made Liora chat widget to render')

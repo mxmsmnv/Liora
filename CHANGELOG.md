@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0 - 2026-07-24
+
+- Added low-latency lexical-first Atlas retrieval with automatic semantic fallback when local matches are insufficient.
+- Added an Atlas fast-retrieval setting, enabled by default.
+- Streamed provider deltas immediately even when the stay-on-site policy is enabled; external links remain inert while streaming and the final server-filtered answer replaces the draft.
+
 ## 1.6.1 - 2026-07-24
 
 - Made short visitor messages render as compact content-sized bubbles.
