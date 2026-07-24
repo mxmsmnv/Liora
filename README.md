@@ -54,6 +54,11 @@ Non-superusers need both `liora-review` to open the dashboard and
 `liora-delete` to see and use the delete action. Deletion is a server-side,
 permanent operation protected by ProcessWire CSRF validation.
 
+Liora Insights presents each Thread as a chronological conversation timeline.
+The active provider/model and the settings button remain in a footer toolbar.
+When Squad has no usable provider/model, the dashboard displays a prominent
+configuration warning instead of silently showing an empty model value.
+
 ## Localization
 
 Every visitor-facing widget text uses ProcessWire's native multi-language

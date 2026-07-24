@@ -8,7 +8,7 @@ class ProcessLiora extends Process {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 131,
+            'version' => 132,
             'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',
@@ -72,9 +72,11 @@ class ProcessLiora extends Process {
 
         return "<div class='ProcessLiora'>"
             . $this->renderSummary($summary, $liora)
+            . $this->renderConfigurationNotice($liora)
             . $this->renderTopDemand($top)
             . $this->renderFilters($status)
             . $this->renderThreads($threads)
+            . $this->renderSettingsFooter($liora)
             . '</div>';
     }
 
@@ -92,10 +94,35 @@ class ProcessLiora extends Process {
         foreach($cards as $label => $value) {
             $out .= "<div class='uk-card uk-card-default uk-card-body uk-padding-small'><div class='uk-text-meta'>{$label}</div><strong>{$value}</strong></div>";
         }
-        $settings = $this->wire('config')->urls->admin . 'module/edit?name=Liora';
-        return $out . "</div><p><strong>" . $this->_('Active model:') . '</strong> '
-            . $this->wire('sanitizer')->entities($liora->getProvider() . ' / ' . $liora->getModel())
-            . " · <a href='{$settings}'>" . $this->_('Liora settings') . '</a></p>';
+        return $out . '</div>';
+    }
+
+    protected function renderConfigurationNotice(Liora $liora): string {
+        if($liora->isConfigured()) return '';
+        $settings = $this->settingsUrl();
+        return "<div class='liora-admin-config-warning' role='alert'>"
+            . "<span class='liora-admin-config-warning__icon' aria-hidden='true'><i class='fa fa-exclamation-triangle'></i></span>"
+            . "<div class='liora-admin-config-warning__content'><strong>" . $this->_('Liora is not configured') . '</strong>'
+            . '<p>' . $this->_('Choose an active Squad provider and model before visitors can receive answers.') . '</p></div>'
+            . "<a class='uk-button uk-button-primary' href='{$settings}'><i class='fa fa-cog' aria-hidden='true'></i> "
+            . $this->_('Configure Liora') . '</a></div>';
+    }
+
+    protected function renderSettingsFooter(Liora $liora): string {
+        $san = $this->wire('sanitizer');
+        $configured = $liora->isConfigured();
+        $model = trim($liora->getProvider() . ' / ' . $liora->getModel(), ' /');
+        if($model === '') $model = $this->_('Not configured');
+        $stateClass = $configured ? ' is-configured' : ' is-unconfigured';
+        return "<footer class='liora-admin-settings{$stateClass}'>"
+            . "<div class='liora-admin-settings__model'><span>" . $this->_('Active model') . '</span>'
+            . '<strong>' . $san->entities($model) . '</strong></div>'
+            . "<a class='uk-button uk-button-default' href='" . $this->settingsUrl() . "'>"
+            . "<i class='fa fa-cog' aria-hidden='true'></i> " . $this->_('Liora settings') . '</a></footer>';
+    }
+
+    protected function settingsUrl(): string {
+        return $this->wire('config')->urls->admin . 'module/edit?name=Liora';
     }
 
     protected function renderTopDemand(array $rows): string {
@@ -153,34 +180,40 @@ class ProcessLiora extends Process {
             $pageTitle = $san->entities((string)$thread['page_title']);
 
             $out .= "<article class='uk-card uk-card-default uk-card-body uk-margin liora-admin-thread'>"
-                . "<header class='liora-admin-thread__header'><div><span class='uk-label'>"
-                . $san->entities((string)$thread['status']) . "</span> <span class='uk-text-meta'>"
-                . $san->entities((string)$thread['updated_at']) . "</span></div>"
-                . "<div class='uk-text-meta'>" . (int)$thread['message_count'] . ' ' . $this->_('messages')
-                . ($location !== '' ? ' · ' . $san->entities($location) : '') . '</div></header>'
-                . "<h3>{$title}</h3>"
-                . ($original !== '' ? "<p><strong>" . $this->_('Original search:') . "</strong> {$original}</p>" : '')
+                . "<header class='liora-admin-thread__header'><div class='liora-admin-thread__title'>"
+                . "<div class='liora-admin-thread__eyebrow'><span class='uk-label'>"
+                . $san->entities((string)$thread['status']) . "</span><time datetime='"
+                . $san->entities((string)$thread['updated_at']) . "'>"
+                . $san->entities((string)$thread['updated_at']) . "</time></div><h3>{$title}</h3></div>"
+                . "<div class='liora-admin-thread__stats'><strong>" . (int)$thread['message_count'] . '</strong><span>'
+                . $this->_('messages') . '</span>'
+                . ($location !== '' ? "<small><i class='fa fa-map-marker' aria-hidden='true'></i> "
+                    . $san->entities($location) . '</small>' : '') . '</div></header>'
+                . ($original !== '' ? "<div class='liora-admin-thread__query'><span>"
+                    . $this->_('Original search') . "</span><strong>{$original}</strong></div>" : '')
                 . $this->renderMessages((array)$thread['messages']);
 
             if($source !== '') {
                 $safeSource = $san->entities($source);
-                $out .= "<p class='uk-text-meta'><strong>" . $this->_('Page:') . '</strong> '
+                $out .= "<div class='liora-admin-thread__references'><p><strong>" . $this->_('Page:') . '</strong> '
                     . ($pageTitle !== '' ? "{$pageTitle} · " : '')
                     . "<a href='{$safeSource}' target='_blank' rel='noopener'>{$safeSource}</a></p>";
             }
             if($referrer !== '') {
                 $safeReferrer = $san->entities($referrer);
-                $out .= "<p class='uk-text-meta'><strong>" . $this->_('Referrer:') . "</strong> {$safeReferrer}</p>";
+                if($source === '') $out .= "<div class='liora-admin-thread__references'>";
+                $out .= "<p><strong>" . $this->_('Referrer:') . "</strong> {$safeReferrer}</p>";
             }
+            if($source !== '' || $referrer !== '') $out .= '</div>';
 
-            $out .= "<form method='post' class='uk-flex uk-flex-middle liora-admin-status'>{$csrf}"
+            $out .= "<footer class='liora-admin-thread__footer'><form method='post' class='uk-flex uk-flex-middle liora-admin-status'>{$csrf}"
                 . "<input type='hidden' name='action' value='status'><input type='hidden' name='id' value='" . (int)$thread['id'] . "'>"
                 . "<select name='status' class='uk-select uk-form-width-medium'>";
             foreach(LioraStore::statuses() as $status) {
                 $selected = $status === $thread['status'] ? ' selected' : '';
                 $out .= "<option value='{$status}'{$selected}>{$status}</option>";
             }
-            $out .= "</select><button class='uk-button uk-button-default' type='submit'>" . $this->_('Update') . '</button></form></article>';
+            $out .= "</select><button class='uk-button uk-button-default' type='submit'>" . $this->_('Update') . '</button></form></footer></article>';
         }
         return $out;
     }
@@ -193,7 +226,9 @@ class ProcessLiora extends Process {
             $this->_('Delete this message permanently?'),
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
         ));
-        $out = "<div class='liora-admin-messages'>";
+        if(!$messages) return "<div class='liora-admin-messages liora-admin-messages--empty'>"
+            . $this->_('This conversation has no messages.') . '</div>';
+        $out = "<div class='liora-admin-messages' aria-label='" . $san->entities($this->_('Conversation messages')) . "'>";
         foreach($messages as $message) {
             $role = in_array($message['role'], ['user', 'assistant', 'error'], true)
                 ? $message['role']
@@ -203,7 +238,13 @@ class ProcessLiora extends Process {
                 : ($role === 'error' ? $this->_('Error') : $this->_('Visitor'));
             $content = $san->entities((string)$message['content']);
             $model = trim((string)$message['provider'] . ' / ' . (string)$message['model'], ' /');
-            $meta = $san->entities((string)$message['created_at'] . ($model !== '' ? ' · ' . $model : ''));
+            $created = $san->entities((string)$message['created_at']);
+            $icon = $role === 'assistant' ? 'magic' : ($role === 'error' ? 'exclamation-circle' : 'user');
+            $identity = "<div class='liora-admin-message__identity'><span class='liora-admin-message__avatar' aria-hidden='true'>"
+                . "<i class='fa fa-{$icon}'></i></span><div><strong>{$label}</strong>"
+                . "<div class='liora-admin-message__meta'><time datetime='{$created}'>{$created}</time>"
+                . ($model !== '' ? '<span>' . $san->entities($model) . '</span>' : '')
+                . '</div></div></div>';
             $delete = '';
             if($canDelete) {
                 $delete = "<form method='post' class='liora-admin-message__delete' onsubmit=\"return confirm({$confirmation})\">"
@@ -215,13 +256,13 @@ class ProcessLiora extends Process {
                     . $san->entities($this->_('Delete')) . '</button></form>';
             }
             if($role === 'assistant') {
-                $out .= "<blockquote class='liora-admin-message liora-admin-message--assistant'>"
-                    . "<div class='liora-admin-message__header'><div class='liora-admin-message__meta'>{$label} · {$meta}</div>{$delete}</div>"
-                    . "<pre><code>{$content}</code></pre></blockquote>";
+                $out .= "<article class='liora-admin-message liora-admin-message--assistant'>"
+                    . "<header class='liora-admin-message__header'>{$identity}{$delete}</header>"
+                    . "<blockquote><pre><code>{$content}</code></pre></blockquote></article>";
             } else {
-                $out .= "<div class='liora-admin-message liora-admin-message--{$role}'>"
-                    . "<div class='liora-admin-message__header'><div class='liora-admin-message__meta'>{$label} · {$meta}</div>{$delete}</div>"
-                    . "<div class='liora-admin-message__content'>{$content}</div></div>";
+                $out .= "<article class='liora-admin-message liora-admin-message--{$role}'>"
+                    . "<header class='liora-admin-message__header'>{$identity}{$delete}</header>"
+                    . "<div class='liora-admin-message__content'>{$content}</div></article>";
             }
         }
         return $out . '</div>';

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.2 - 2026-07-23
+
+- Redesigned Liora Insights conversations as a clearer chronological message timeline.
+- Moved the active model and settings action into a persistent footer toolbar.
+- Added a prominent configuration warning and setup button when Squad has no usable provider/model.
+- Improved thread context, location, source, status and message metadata hierarchy on desktop and mobile.
+
 ## 1.3.1 - 2026-07-23
 
 - Added per-message deletion to Liora Insights with confirmation and CSRF validation.
