@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.3 - 2026-07-24
+
+- Removed the vertical movement effect from starter-question hover states.
+
 ## 1.9.2 - 2026-07-24
 
 - Added an explicit conversation-continuity instruction for follow-up turns.

@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 192")
-        && str_contains($inputfield, "'version' => 192")
-        && str_contains($process, "'version' => 192"),
+    'release versions' => str_contains($module, "'version' => 193")
+        && str_contains($inputfield, "'version' => 193")
+        && str_contains($process, "'version' => 193"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -108,7 +108,8 @@ $checks = [
         && str_contains($module, "'widgetSuggestionsLabel'")
         && str_contains($javascript, "form.requestSubmit()")
         && str_contains($javascript, "data-liora-suggestion")
-        && str_contains($widgetCss, '.liora-widget__suggestions'),
+        && str_contains($widgetCss, '.liora-widget__suggestions')
+        && !str_contains($widgetCss, 'transform:translateY(-1px)'),
     'optional Atlas RAG' => str_contains($module, "attr('name', 'atlasEnabled')")
         && str_contains($module, 'atlasContext(')
         && str_contains($module, "'rag_sources'")
