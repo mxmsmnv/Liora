@@ -29,9 +29,9 @@ $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 133")
-        && str_contains($inputfield, "'version' => 133")
-        && str_contains($process, "'version' => 133"),
+    'release versions' => str_contains($module, "'version' => 140")
+        && str_contains($inputfield, "'version' => 140")
+        && str_contains($process, "'version' => 140"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -52,6 +52,15 @@ $checks = [
         && str_contains($javascript, "action: 'rename'")
         && str_contains($javascript, 'liora-widget__history-edit-form'),
     'long answer usability' => str_contains($javascript, 'scrollToMessageStart') && str_contains($javascript, 'liora-widget--expanded'),
+    'message metadata controls' => str_contains($module, "attr('name', 'showCopyButton')")
+        && str_contains($module, "attr('name', 'showResponseTime')")
+        && str_contains($module, "attr('name', 'showTokenUsage')")
+        && str_contains($javascript, 'addMessageMeta')
+        && str_contains($javascript, 'responseTimeMs')
+        && str_contains($javascript, 'tokensUsed'),
+    'thinking state' => str_contains($module, "'data-thinking-label'")
+        && str_contains($javascript, 'liora-message--thinking')
+        && !str_contains($javascript, "submit.textContent = '…'"),
     'JSON widget theme' => is_array($theme) && !empty($theme['variables']['messagesMaxHeight'])
         && str_contains($module, 'themeStyle('),
     'welcome preview' => str_contains($module, "attr('name', 'showWelcomeMessage')")

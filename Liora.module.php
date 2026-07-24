@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.3.3
+ * @version 1.4.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 133,
+            'version' => 140,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -478,6 +478,9 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'data-stream' => (bool)$this->setting('streamingEnabled', true) ? '1' : '0',
             'data-local-history' => (bool)$this->setting('localHistoryEnabled', true) ? '1' : '0',
             'data-history-limit' => (string)max(1, (int)$this->setting('localHistoryThreads', 10)),
+            'data-show-copy' => (bool)$this->setting('showCopyButton', true) ? '1' : '0',
+            'data-show-response-time' => (bool)$this->setting('showResponseTime', true) ? '1' : '0',
+            'data-show-token-usage' => (bool)$this->setting('showTokenUsage', true) ? '1' : '0',
             'data-welcome-message' => $welcomeMessage,
             'data-previous-label' => $this->widgetText('widgetPrevious'),
             'data-new-label' => $this->widgetText('widgetNew'),
@@ -487,6 +490,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'data-save-title-label' => $this->widgetText('widgetSave'),
             'data-cancel-title-label' => $this->widgetText('widgetCancel'),
             'data-ask-label' => $this->widgetText('widgetAsk'),
+            'data-thinking-label' => $this->widgetText('widgetThinking'),
+            'data-copy-label' => $this->widgetText('widgetCopy'),
+            'data-copied-label' => $this->widgetText('widgetCopied'),
+            'data-response-time-label' => $this->widgetText('widgetResponseTime'),
+            'data-tokens-label' => $this->widgetText('widgetTokens'),
             'data-sources-label' => $this->widgetText('widgetSources'),
             'data-conversation-label' => $this->widgetText('widgetConversation'),
             'data-error-label' => $this->widgetText('widgetGenericError'),
@@ -667,6 +675,28 @@ class Liora extends WireData implements Module, ConfigurableModule {
         if((bool)$this->setting('showWelcomeMessage', true)) $field->attr('checked', 'checked');
         $fieldset->add($field);
 
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'showCopyButton');
+        $field->label = $this->_('Show a copy action on chat messages');
+        if((bool)$this->setting('showCopyButton', true)) $field->attr('checked', 'checked');
+        $field->columnWidth = 34;
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'showResponseTime');
+        $field->label = $this->_('Show response time on Liora answers');
+        if((bool)$this->setting('showResponseTime', true)) $field->attr('checked', 'checked');
+        $field->columnWidth = 33;
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'showTokenUsage');
+        $field->label = $this->_('Show token usage on Liora answers');
+        $field->description = $this->_('Token usage is shown only when the selected provider returns it.');
+        if((bool)$this->setting('showTokenUsage', true)) $field->attr('checked', 'checked');
+        $field->columnWidth = 33;
+        $fieldset->add($field);
+
         $field = $modules->get('InputfieldSelect');
         $field->attr('name', 'widgetTheme');
         $field->label = $this->_('Widget theme');
@@ -754,6 +784,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'widgetCancel' => [$this->_('Button: cancel'), 'text', 34],
             'widgetAsk' => [$this->_('Button: ask'), 'text', 33],
             'widgetAskLiora' => [$this->_('Question field label'), 'text', 33],
+            'widgetThinking' => [$this->_('Thinking status'), 'text', 34],
+            'widgetCopy' => [$this->_('Button: copy message'), 'text', 25],
+            'widgetCopied' => [$this->_('Copy confirmation'), 'text', 25],
+            'widgetResponseTime' => [$this->_('Response time label'), 'text', 25],
+            'widgetTokens' => [$this->_('Token count label'), 'text', 25],
             'widgetSources' => [$this->_('Sources label'), 'text', 34],
             'widgetConversation' => [$this->_('Untitled conversation label'), 'text', 33],
             'widgetAiDisclaimer' => [$this->_('AI disclaimer'), 'textarea', 50],
@@ -1267,6 +1302,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'widgetCancel' => 'Cancel',
             'widgetAsk' => 'Ask',
             'widgetAskLiora' => 'Ask Liora',
+            'widgetThinking' => 'Liora is thinking',
+            'widgetCopy' => 'Copy',
+            'widgetCopied' => 'Copied',
+            'widgetResponseTime' => 'Response time',
+            'widgetTokens' => 'tokens',
             'widgetSources' => 'Sources',
             'widgetConversation' => 'Conversation',
             'widgetAiDisclaimer' => 'AI can make mistakes. Please verify important information.',
@@ -1299,6 +1339,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'privacyNotice' => 'Ihre Fragen helfen uns, LQRS zu verbessern, und können zur Qualitätskontrolle geprüft werden. Bitte geben Sie keine persönlichen Daten an.',
                 'widgetPrevious' => 'Frühere Gespräche', 'widgetNew' => 'Neues Gespräch', 'widgetExpand' => 'Gespräch erweitern', 'widgetCompact' => 'Gespräch verkleinern',
                 'widgetEditTitle' => 'Titel bearbeiten', 'widgetSave' => 'Speichern', 'widgetCancel' => 'Abbrechen', 'widgetAsk' => 'Fragen', 'widgetAskLiora' => 'Liora fragen',
+                'widgetThinking' => 'Liora denkt nach', 'widgetCopy' => 'Kopieren', 'widgetCopied' => 'Kopiert', 'widgetResponseTime' => 'Antwortzeit', 'widgetTokens' => 'Token',
                 'widgetSources' => 'Quellen', 'widgetConversation' => 'Gespräch', 'widgetAiDisclaimer' => 'KI kann Fehler machen. Bitte prüfen Sie wichtige Informationen.',
                 'widgetHistoryNotice' => 'Der Gesprächsverlauf bleibt in diesem Browser gespeichert, damit Sie später darauf zurückkommen können.',
                 'widgetGenericError' => 'Liora kann gerade nicht antworten.', 'widgetEmptyError' => 'Liora hat eine leere Antwort zurückgegeben.', 'widgetConnectionError' => 'Verbindungsfehler. Bitte versuchen Sie es erneut.'],
@@ -1308,6 +1349,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'privacyNotice' => 'Vos questions nous aident à améliorer LQRS et peuvent être examinées pour le contrôle qualité. N’indiquez pas de données personnelles.',
                 'widgetPrevious' => 'Conversations précédentes', 'widgetNew' => 'Nouvelle conversation', 'widgetExpand' => 'Agrandir la conversation', 'widgetCompact' => 'Réduire la conversation',
                 'widgetEditTitle' => 'Modifier le titre', 'widgetSave' => 'Enregistrer', 'widgetCancel' => 'Annuler', 'widgetAsk' => 'Demander', 'widgetAskLiora' => 'Demander à Liora',
+                'widgetThinking' => 'Liora réfléchit', 'widgetCopy' => 'Copier', 'widgetCopied' => 'Copié', 'widgetResponseTime' => 'Temps de réponse', 'widgetTokens' => 'jetons',
                 'widgetSources' => 'Sources', 'widgetConversation' => 'Conversation', 'widgetAiDisclaimer' => 'L’IA peut se tromper. Vérifiez les informations importantes.',
                 'widgetHistoryNotice' => 'L’historique reste dans ce navigateur afin que vous puissiez y revenir plus tard.',
                 'widgetGenericError' => 'Liora ne peut pas répondre pour le moment.', 'widgetEmptyError' => 'Liora a renvoyé une réponse vide.', 'widgetConnectionError' => 'Erreur de connexion. Veuillez réessayer.'],
@@ -1317,6 +1359,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'privacyNotice' => 'Tus preguntas nos ayudan a mejorar LQRS y pueden revisarse para controlar la calidad. No incluyas datos personales.',
                 'widgetPrevious' => 'Conversaciones anteriores', 'widgetNew' => 'Nueva conversación', 'widgetExpand' => 'Ampliar conversación', 'widgetCompact' => 'Reducir conversación',
                 'widgetEditTitle' => 'Editar título', 'widgetSave' => 'Guardar', 'widgetCancel' => 'Cancelar', 'widgetAsk' => 'Preguntar', 'widgetAskLiora' => 'Preguntar a Liora',
+                'widgetThinking' => 'Liora está pensando', 'widgetCopy' => 'Copiar', 'widgetCopied' => 'Copiado', 'widgetResponseTime' => 'Tiempo de respuesta', 'widgetTokens' => 'tokens',
                 'widgetSources' => 'Fuentes', 'widgetConversation' => 'Conversación', 'widgetAiDisclaimer' => 'La IA puede cometer errores. Verifica la información importante.',
                 'widgetHistoryNotice' => 'El historial permanece en este navegador para que puedas retomarlo más tarde.',
                 'widgetGenericError' => 'Liora no puede responder ahora.', 'widgetEmptyError' => 'Liora devolvió una respuesta vacía.', 'widgetConnectionError' => 'Error de conexión. Inténtalo de nuevo.'],
@@ -1326,6 +1369,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'privacyNotice' => 'Le tue domande ci aiutano a migliorare LQRS e possono essere esaminate per il controllo qualità. Non inserire dati personali.',
                 'widgetPrevious' => 'Conversazioni precedenti', 'widgetNew' => 'Nuova conversazione', 'widgetExpand' => 'Espandi conversazione', 'widgetCompact' => 'Riduci conversazione',
                 'widgetEditTitle' => 'Modifica titolo', 'widgetSave' => 'Salva', 'widgetCancel' => 'Annulla', 'widgetAsk' => 'Chiedi', 'widgetAskLiora' => 'Chiedi a Liora',
+                'widgetThinking' => 'Liora sta pensando', 'widgetCopy' => 'Copia', 'widgetCopied' => 'Copiato', 'widgetResponseTime' => 'Tempo di risposta', 'widgetTokens' => 'token',
                 'widgetSources' => 'Fonti', 'widgetConversation' => 'Conversazione', 'widgetAiDisclaimer' => 'L’IA può commettere errori. Verifica le informazioni importanti.',
                 'widgetHistoryNotice' => 'La cronologia resta in questo browser per poterla riprendere in seguito.',
                 'widgetGenericError' => 'Liora non può rispondere in questo momento.', 'widgetEmptyError' => 'Liora ha restituito una risposta vuota.', 'widgetConnectionError' => 'Errore di connessione. Riprova.'],
@@ -1335,6 +1379,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'privacyNotice' => 'Je vragen helpen ons LQRS te verbeteren en kunnen voor kwaliteitscontrole worden bekeken. Deel geen persoonlijke gegevens.',
                 'widgetPrevious' => 'Eerdere gesprekken', 'widgetNew' => 'Nieuw gesprek', 'widgetExpand' => 'Gesprek vergroten', 'widgetCompact' => 'Gesprek verkleinen',
                 'widgetEditTitle' => 'Titel bewerken', 'widgetSave' => 'Opslaan', 'widgetCancel' => 'Annuleren', 'widgetAsk' => 'Vragen', 'widgetAskLiora' => 'Vraag Liora',
+                'widgetThinking' => 'Liora denkt na', 'widgetCopy' => 'Kopiëren', 'widgetCopied' => 'Gekopieerd', 'widgetResponseTime' => 'Reactietijd', 'widgetTokens' => 'tokens',
                 'widgetSources' => 'Bronnen', 'widgetConversation' => 'Gesprek', 'widgetAiDisclaimer' => 'AI kan fouten maken. Controleer belangrijke informatie.',
                 'widgetHistoryNotice' => 'De gespreksgeschiedenis blijft in deze browser zodat je later kunt terugkeren.',
                 'widgetGenericError' => 'Liora kan nu niet antwoorden.', 'widgetEmptyError' => 'Liora gaf een leeg antwoord.', 'widgetConnectionError' => 'Verbindingsfout. Probeer het opnieuw.'],
@@ -1344,6 +1389,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'privacyNotice' => 'Twoje pytania pomagają nam ulepszać LQRS i mogą być przeglądane w celu kontroli jakości. Nie podawaj danych osobowych.',
                 'widgetPrevious' => 'Poprzednie rozmowy', 'widgetNew' => 'Nowa rozmowa', 'widgetExpand' => 'Rozwiń rozmowę', 'widgetCompact' => 'Zwiń rozmowę',
                 'widgetEditTitle' => 'Edytuj tytuł', 'widgetSave' => 'Zapisz', 'widgetCancel' => 'Anuluj', 'widgetAsk' => 'Zapytaj', 'widgetAskLiora' => 'Zapytaj Liorę',
+                'widgetThinking' => 'Liora myśli', 'widgetCopy' => 'Kopiuj', 'widgetCopied' => 'Skopiowano', 'widgetResponseTime' => 'Czas odpowiedzi', 'widgetTokens' => 'tokenów',
                 'widgetSources' => 'Źródła', 'widgetConversation' => 'Rozmowa', 'widgetAiDisclaimer' => 'AI może popełniać błędy. Sprawdź ważne informacje.',
                 'widgetHistoryNotice' => 'Historia rozmów pozostaje w tej przeglądarce, aby można było wrócić do niej później.',
                 'widgetGenericError' => 'Liora nie może teraz odpowiedzieć.', 'widgetEmptyError' => 'Liora zwróciła pustą odpowiedź.', 'widgetConnectionError' => 'Błąd połączenia. Spróbuj ponownie.'],
@@ -1353,6 +1399,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'privacyNotice' => 'Ваши вопросы помогают нам улучшать LQRS и могут проверяться для контроля качества. Не указывайте личные данные.',
                 'widgetPrevious' => 'Прошлые разговоры', 'widgetNew' => 'Новый разговор', 'widgetExpand' => 'Развернуть разговор', 'widgetCompact' => 'Свернуть разговор',
                 'widgetEditTitle' => 'Изменить название', 'widgetSave' => 'Сохранить', 'widgetCancel' => 'Отмена', 'widgetAsk' => 'Спросить', 'widgetAskLiora' => 'Спросить Лиору',
+                'widgetThinking' => 'Лиора думает', 'widgetCopy' => 'Копировать', 'widgetCopied' => 'Скопировано', 'widgetResponseTime' => 'Время ответа', 'widgetTokens' => 'токенов',
                 'widgetSources' => 'Источники', 'widgetConversation' => 'Разговор', 'widgetAiDisclaimer' => 'ИИ может ошибаться. Проверяйте важную информацию.',
                 'widgetHistoryNotice' => 'История разговоров хранится в этом браузере, чтобы вы могли вернуться к ней позже.',
                 'widgetGenericError' => 'Лиора сейчас не может ответить.', 'widgetEmptyError' => 'Лиора вернула пустой ответ.', 'widgetConnectionError' => 'Ошибка соединения. Попробуйте ещё раз.'],

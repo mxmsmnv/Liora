@@ -38,14 +38,81 @@
     const addMessage = (container, role, text = '', scroll = 'bottom') => {
         const item = document.createElement('div');
         item.className = `liora-message liora-message--${role}`;
-        item.innerHTML = safeMarkdown(text);
+        item.dataset.messageText = text;
+        const content = document.createElement('div');
+        content.className = 'liora-message__content';
+        content.innerHTML = safeMarkdown(text);
+        item.append(content);
         container.append(item);
         if(scroll === 'bottom') scrollToBottom(container);
         return item;
     };
 
     const updateMessage = (item, text) => {
-        item.innerHTML = safeMarkdown(text);
+        item.dataset.messageText = text;
+        const content = item.querySelector('.liora-message__content');
+        if(content) content.innerHTML = safeMarkdown(text);
+    };
+
+    const copyText = async text => {
+        if(navigator.clipboard?.writeText && globalThis.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+        const field = document.createElement('textarea');
+        field.value = text;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.opacity = '0';
+        document.body.append(field);
+        field.select();
+        const copied = document.execCommand('copy');
+        field.remove();
+        if(!copied) throw new Error('Copy failed');
+    };
+
+    const addMessageMeta = (item, message, options) => {
+        if(!item || !message || item.querySelector('.liora-message__meta')) return;
+        const showCopy = options.showCopy;
+        const responseTimeMs = Math.max(0, Number(message.responseTimeMs || 0));
+        const tokensUsed = Math.max(0, Number(message.tokensUsed || 0));
+        const showResponseTime = options.showResponseTime && message.role === 'assistant' && responseTimeMs > 0;
+        const showTokenUsage = options.showTokenUsage && message.role === 'assistant' && tokensUsed > 0;
+        if(!showCopy && !showResponseTime && !showTokenUsage) return;
+
+        const meta = document.createElement('div');
+        meta.className = 'liora-message__meta';
+        if(showResponseTime) {
+            const timing = document.createElement('span');
+            timing.textContent = `${options.responseTimeLabel}: ${responseTimeMs < 1000
+                ? `${Math.round(responseTimeMs)} ms`
+                : `${(responseTimeMs / 1000).toFixed(1)} s`}`;
+            meta.append(timing);
+        }
+        if(showTokenUsage) {
+            const tokens = document.createElement('span');
+            tokens.textContent = `${tokensUsed.toLocaleString()} ${options.tokensLabel}`;
+            meta.append(tokens);
+        }
+        if(showCopy) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'liora-message__copy';
+            button.textContent = options.copyLabel;
+            button.addEventListener('click', async () => {
+                try {
+                    await copyText(String(message.content || item.dataset.messageText || ''));
+                    button.textContent = options.copiedLabel;
+                    globalThis.setTimeout(() => {
+                        button.textContent = options.copyLabel;
+                    }, 1600);
+                } catch {
+                    button.textContent = options.copyLabel;
+                }
+            });
+            meta.append(button);
+        }
+        item.append(meta);
     };
 
     const addSources = (item, sources, sourcesLabel = 'Sources') => {
@@ -125,6 +192,16 @@
         const previousLabel = widget.dataset.previousLabel || 'Previous conversations';
         const conversationLabel = widget.dataset.conversationLabel || 'Conversation';
         const sourcesLabel = widget.dataset.sourcesLabel || 'Sources';
+        const messageMetaOptions = {
+            showCopy: widget.dataset.showCopy === '1',
+            showResponseTime: widget.dataset.showResponseTime === '1',
+            showTokenUsage: widget.dataset.showTokenUsage === '1',
+            copyLabel: widget.dataset.copyLabel || 'Copy',
+            copiedLabel: widget.dataset.copiedLabel || 'Copied',
+            responseTimeLabel: widget.dataset.responseTimeLabel || 'Response time',
+            tokensLabel: widget.dataset.tokensLabel || 'tokens',
+        };
+        const thinkingLabel = widget.dataset.thinkingLabel || 'Liora is thinking';
         const errorLabel = widget.dataset.errorLabel || 'Liora could not answer right now.';
         const emptyErrorLabel = widget.dataset.emptyErrorLabel || 'Liora returned an empty answer.';
         const connectionErrorLabel = widget.dataset.connectionErrorLabel || 'Connection error. Please try again.';
@@ -213,6 +290,7 @@
                     thread.messages.forEach(message => {
                         lastMessage = addMessage(messages, message.role, message.content, 'none');
                         if(message.role === 'assistant') addSources(lastMessage, message.sources, sourcesLabel);
+                        addMessageMeta(lastMessage, message, messageMetaOptions);
                     });
                     historyPanel.hidden = true;
                     historyButton.setAttribute('aria-expanded', 'false');
@@ -302,18 +380,23 @@
             const priorHistory = currentThread.messages
                 .filter(message => message.role === 'user' || message.role === 'assistant')
                 .map(({role, content}) => ({role, content}));
-            currentThread.messages.push({role: 'user', content: question, createdAt: new Date().toISOString()});
+            const userMessage = {role: 'user', content: question, createdAt: new Date().toISOString()};
+            currentThread.messages.push(userMessage);
             messages.querySelector('[data-liora-welcome]')?.remove();
-            addMessage(messages, 'user', question);
+            const userItem = addMessage(messages, 'user', question);
+            addMessageMeta(userItem, userMessage, messageMetaOptions);
             persist();
             input.value = '';
             input.disabled = true;
             submit.disabled = true;
-            submit.textContent = '…';
 
-            let assistantItem = null;
+            const responseStartedAt = performance.now();
+            let assistantItem = addMessage(messages, 'assistant', thinkingLabel, 'none');
+            assistantItem.classList.add('liora-message--thinking');
+            scrollToMessageStart(widget, messages, assistantItem);
             let assistantText = '';
             let ragSources = [];
+            let tokensUsed = 0;
             try {
                 const headers = {
                     'Content-Type': 'application/json',
@@ -340,8 +423,6 @@
                 const contentType = response.headers.get('content-type') || '';
                 if(wantsStream && response.body && contentType.includes('application/x-ndjson')) {
                     if(!response.ok) throw new Error(errorLabel);
-                    assistantItem = addMessage(messages, 'assistant', '', 'none');
-                    scrollToMessageStart(widget, messages, assistantItem);
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let buffer = '';
@@ -360,6 +441,10 @@
                                 if(data.thread_title) currentThread.title = data.thread_title;
                             }
                             if(data.type === 'delta') {
+                                if(assistantItem.classList.contains('liora-message--thinking')) {
+                                    assistantItem.classList.remove('liora-message--thinking');
+                                    updateMessage(assistantItem, '');
+                                }
                                 assistantText += data.content || '';
                                 updateMessage(assistantItem, assistantText);
                             }
@@ -367,6 +452,7 @@
                             if(data.type === 'done') {
                                 if(data.thread_id) currentThread.id = data.thread_id;
                                 if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
+                                tokensUsed = Math.max(0, Number(data.tokens_used || 0));
                             }
                         }
                     }
@@ -380,17 +466,23 @@
                     if(data.thread_id) currentThread.id = data.thread_id;
                     if(data.thread_title) currentThread.title = data.thread_title;
                     if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
+                    tokensUsed = Math.max(0, Number(data.tokens_used || 0));
                     assistantText = data.response || '';
-                    assistantItem = addMessage(messages, 'assistant', assistantText, 'none');
+                    assistantItem.classList.remove('liora-message--thinking');
+                    updateMessage(assistantItem, assistantText);
                     addSources(assistantItem, ragSources, sourcesLabel);
                     scrollToMessageStart(widget, messages, assistantItem);
                 }
-                currentThread.messages.push({
+                const assistantMessage = {
                     role: 'assistant',
                     content: assistantText,
                     sources: ragSources,
+                    responseTimeMs: Math.round(performance.now() - responseStartedAt),
+                    tokensUsed,
                     createdAt: new Date().toISOString(),
-                });
+                };
+                addMessageMeta(assistantItem, assistantMessage, messageMetaOptions);
+                currentThread.messages.push(assistantMessage);
                 persist();
                 if(assistantItem) scrollToMessageStart(widget, messages, assistantItem);
             } catch(error) {
@@ -399,7 +491,6 @@
             } finally {
                 input.disabled = false;
                 submit.disabled = false;
-                submit.textContent = widget.dataset.askLabel || 'Ask';
             }
         });
     };

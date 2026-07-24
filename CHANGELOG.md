@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 - 2026-07-23
+
+- Added configurable copy actions to visitor chat messages.
+- Added configurable response-time and provider token-usage metadata to Liora answers.
+- Persisted answer metadata in LocalStorage so it remains visible in restored conversations.
+- Replaced the submit-button ellipsis with a localized animated “Liora is thinking” message inside the conversation.
+- Kept real provider streaming enabled and replaced the thinking state as soon as the first delta arrives.
+
 ## 1.3.3 - 2026-07-23
 
 - Added permission-controlled deletion of an entire conversation from Liora Insights.

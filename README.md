@@ -118,6 +118,13 @@ When Squad supports the selected provider, Liora sends newline-delimited JSON
 and renders provider deltas as they arrive. Disabling streaming keeps the
 regular JSON response flow.
 
+While the provider is preparing its first delta, the conversation shows a
+localized animated **Liora is thinking** message without changing the submit
+button label. Widget settings independently control message copy actions,
+response-time metadata and provider-reported token usage. Completed-answer
+metadata is kept with the browser conversation so it remains available after
+the visitor restores that Thread.
+
 ## Widget themes
 
 Widget behavior lives in `assets/liora.js`, base layout lives in
