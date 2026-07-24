@@ -8,7 +8,7 @@ class ProcessLiora extends Process {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 111,
+            'version' => 120,
             'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',
@@ -21,7 +21,7 @@ class ProcessLiora extends Process {
 
     public function init(): void {
         parent::init();
-        $url = $this->wire('config')->urls->siteModules . 'Liora/assets/liora-admin.css?v=111';
+        $url = $this->wire('config')->urls->siteModules . 'Liora/assets/liora-admin.css?v=120';
         $this->wire('config')->styles->add($url);
     }
 
