@@ -50,6 +50,25 @@
     border-bottom: 1px solid #eef0f2;
     background: linear-gradient(180deg, #fff, #fbfbfc);
 }
+.liora-admin-thread.is-collapsed .liora-admin-thread__header {
+    padding-bottom: 20px;
+    border-bottom: 0;
+}
+.liora-admin-thread__body[hidden] { display: none; }
+.liora-admin-thread__controls {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 16px;
+}
+.liora-admin-thread__toggle {
+    min-width: 92px;
+    border-radius: 7px;
+}
+.liora-admin-thread__toggle i {
+    width: 12px;
+    margin-right: 5px;
+}
 .liora-admin-thread__eyebrow {
     display: flex;
     align-items: center;
@@ -254,6 +273,22 @@
     line-height: 1.55;
 }
 .liora-admin-status { gap: 8px; }
+.liora-admin-pagination {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    margin: 24px 0;
+    padding: 14px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fbfbfc;
+}
+.liora-admin-pagination p {
+    margin: 0;
+    color: #6b7280;
+    font-size: .82rem;
+}
+.liora-admin-pagination .uk-pagination { margin: 0; }
 .liora-admin-settings {
     display: flex;
     align-items: center;
@@ -284,6 +319,10 @@
 .liora-admin-settings.is-unconfigured .liora-admin-settings__model strong { color: #b45309; }
 @media (max-width: 640px) {
     .liora-admin-thread__header { align-items: flex-start; flex-direction: column; }
+    .liora-admin-thread__controls {
+        width: 100%;
+        justify-content: space-between;
+    }
     .liora-admin-thread__stats { text-align: left; }
     .liora-admin-thread__query { align-items: flex-start; flex-direction: column; gap: 3px; }
     .liora-admin-messages { padding: 16px; }

@@ -64,7 +64,10 @@ permanent operation protected by ProcessWire CSRF validation.
 The same permission also allows deleting a complete Thread; its messages are
 removed with it through the database foreign-key cascade.
 
-Liora Insights presents each Thread as a chronological conversation timeline.
+Liora Insights paginates Threads and presents each one as a chronological
+conversation timeline. Threads start collapsed; the Open/Hide control remembers
+the expanded conversations and scroll position for each filter and page in the
+current admin browser.
 The active provider/model and the settings button remain in a footer toolbar.
 When Squad has no usable provider/model, the dashboard displays a prominent
 configuration warning instead of silently showing an empty model value.

@@ -8,6 +8,7 @@ $required = [
     'ProcessLiora.module.php',
     'assets/liora.css',
     'assets/liora-admin.css',
+    'assets/liora-admin.js',
     'assets/liora.js',
     'themes/default.json',
 ];
@@ -24,14 +25,15 @@ $store = file_get_contents($root . '/LioraStore.php');
 $inputfield = file_get_contents($root . '/InputfieldLiora.module.php');
 $process = file_get_contents($root . '/ProcessLiora.module.php');
 $javascript = file_get_contents($root . '/assets/liora.js');
+$adminJavascript = file_get_contents($root . '/assets/liora-admin.js');
 $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
 
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 141")
-        && str_contains($inputfield, "'version' => 141")
-        && str_contains($process, "'version' => 141"),
+    'release versions' => str_contains($module, "'version' => 150")
+        && str_contains($inputfield, "'version' => 150")
+        && str_contains($process, "'version' => 150"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -82,6 +84,14 @@ $checks = [
         && str_contains($process, 'renderSettingsFooter(')
         && str_contains($process, 'liora-admin-message__identity')
         && str_contains($process, 'liora-admin-thread__query'),
+    'admin conversation pagination' => str_contains($store, 'function countThreads(')
+        && str_contains($store, 'OFFSET {$offset}')
+        && str_contains($process, 'renderPagination('),
+    'admin collapsed thread state' => str_contains($process, 'data-liora-thread-toggle')
+        && str_contains($process, 'is-collapsed')
+        && str_contains($adminJavascript, 'localStorage')
+        && str_contains($adminJavascript, 'scrollY')
+        && str_contains($adminJavascript, 'topBefore'),
     'CSRF validation' => str_contains($process, 'CSRF->validate()'),
     'admin message deletion' => str_contains($store, 'function deleteMessage(')
         && str_contains($process, "post('action') === 'delete_message'")

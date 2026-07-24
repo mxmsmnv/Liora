@@ -309,9 +309,24 @@ class LioraStore extends Wire {
         return $stmt->rowCount() === 1;
     }
 
-    public function recentThreads(int $limit = 100, string $status = ''): array {
+    public function countThreads(string $status = ''): int {
+        $this->ensureTable();
+        if($status !== '' && in_array($status, self::statuses(), true)) {
+            $stmt = $this->wire('database')->prepare(
+                "SELECT COUNT(*) FROM `" . self::THREADS . "` WHERE status=:status"
+            );
+            $stmt->execute([':status' => $status]);
+            return (int)$stmt->fetchColumn();
+        }
+        return (int)$this->wire('database')->query(
+            "SELECT COUNT(*) FROM `" . self::THREADS . "`"
+        )->fetchColumn();
+    }
+
+    public function recentThreads(int $limit = 20, string $status = '', int $offset = 0): array {
         $this->ensureTable();
         $limit = max(1, min(300, $limit));
+        $offset = max(0, $offset);
         $params = [];
         $where = '';
         if($status !== '' && in_array($status, self::statuses(), true)) {
@@ -319,7 +334,8 @@ class LioraStore extends Wire {
             $params[':status'] = $status;
         }
         $stmt = $this->wire('database')->prepare(
-            "SELECT * FROM `" . self::THREADS . "`{$where} ORDER BY updated_at DESC, id DESC LIMIT {$limit}"
+            "SELECT * FROM `" . self::THREADS . "`{$where}
+             ORDER BY updated_at DESC, id DESC LIMIT {$limit} OFFSET {$offset}"
         );
         $stmt->execute($params);
         $threads = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];

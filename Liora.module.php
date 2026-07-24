@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.4.1
+ * @version 1.5.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 141,
+            'version' => 150,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',

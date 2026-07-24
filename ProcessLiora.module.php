@@ -8,7 +8,7 @@ class ProcessLiora extends Process {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 141,
+            'version' => 150,
             'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',
@@ -24,9 +24,10 @@ class ProcessLiora extends Process {
 
     public function init(): void {
         parent::init();
-        $url = $this->wire('config')->urls->siteModules . 'Liora/assets/liora-admin.css?v='
-            . self::getModuleInfo()['version'];
-        $this->wire('config')->styles->add($url);
+        $base = $this->wire('config')->urls->siteModules . 'Liora/assets/';
+        $version = self::getModuleInfo()['version'];
+        $this->wire('config')->styles->add($base . 'liora-admin.css?v=' . $version);
+        $this->wire('config')->scripts->add($base . 'liora-admin.js?v=' . $version);
     }
 
     public function execute(): string {
@@ -40,6 +41,10 @@ class ProcessLiora extends Process {
         $input = $this->wire('input');
         $session = $this->wire('session');
         $san = $this->wire('sanitizer');
+        $status = $san->pageName((string)$input->get('status'));
+        if(!in_array($status, LioraStore::statuses(), true)) $status = '';
+        $pageNumber = max(1, (int)$input->get('p'));
+        $returnUrl = $this->threadListUrl($status, $pageNumber);
 
         if($input->post('action') === 'status') {
             $session->CSRF->validate();
@@ -47,7 +52,7 @@ class ProcessLiora extends Process {
             $status = $san->pageName((string)$input->post('status'));
             if($store->updateStatus($id, $status)) $this->message($this->_('Conversation status updated.'));
             else $this->error($this->_('Could not update the conversation.'));
-            $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
+            $session->redirect($returnUrl . '#liora-thread-' . $id);
         }
 
         if($input->post('action') === 'delete_message') {
@@ -58,7 +63,7 @@ class ProcessLiora extends Process {
             $messageId = (int)$input->post('message_id');
             if($store->deleteMessage($messageId)) $this->message($this->_('Message deleted.'));
             else $this->error($this->_('The message could not be deleted.'));
-            $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
+            $session->redirect($returnUrl);
         }
 
         if($input->post('action') === 'delete_thread') {
@@ -69,13 +74,16 @@ class ProcessLiora extends Process {
             $threadId = (int)$input->post('thread_id');
             if($store->deleteThread($threadId)) $this->message($this->_('Conversation and all its messages deleted.'));
             else $this->error($this->_('The conversation could not be deleted.'));
-            $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
+            $session->redirect($returnUrl);
         }
 
-        $status = $san->pageName((string)$input->get('status'));
-        if(!in_array($status, LioraStore::statuses(), true)) $status = '';
+        $perPage = 10;
+        $totalThreads = $store->countThreads($status);
+        $totalPages = max(1, (int)ceil($totalThreads / $perPage));
+        $pageNumber = min($pageNumber, $totalPages);
+        $offset = ($pageNumber - 1) * $perPage;
         $summary = $store->summary();
-        $threads = $store->recentThreads(100, $status);
+        $threads = $store->recentThreads($perPage, $status, $offset);
         $top = $store->topDemand(20);
 
         $this->headline($this->_('Liora Insights'));
@@ -87,6 +95,7 @@ class ProcessLiora extends Process {
             . $this->renderTopDemand($top)
             . $this->renderFilters($status)
             . $this->renderThreads($threads)
+            . $this->renderPagination($pageNumber, $totalPages, $totalThreads, $perPage, $status)
             . $this->renderSettingsFooter($liora)
             . '</div>';
     }
@@ -168,10 +177,57 @@ class ProcessLiora extends Process {
         $out = "<h2 class='liora-admin-recent'>" . $this->_('Recent conversations') . "</h2><ul class='uk-subnav uk-subnav-pill'>";
         foreach($items as $value => $label) {
             $class = $value === $active ? " class='uk-active'" : '';
-            $href = $value === '' ? './' : './?status=' . urlencode($value);
+            $href = $this->threadListUrl($value, 1);
             $out .= "<li{$class}><a href='{$href}'>{$label}</a></li>";
         }
         return $out . '</ul>';
+    }
+
+    protected function renderPagination(
+        int $current,
+        int $totalPages,
+        int $totalItems,
+        int $perPage,
+        string $status
+    ): string {
+        if($totalItems < 1) return '';
+        $first = (($current - 1) * $perPage) + 1;
+        $last = min($totalItems, $current * $perPage);
+        $out = "<nav class='liora-admin-pagination' aria-label='" . $this->_('Conversation pages') . "'>"
+            . "<p>" . sprintf($this->_('Showing %1$d–%2$d of %3$d conversations'), $first, $last, $totalItems) . '</p>';
+        if($totalPages > 1) {
+            $pages = [1, $totalPages];
+            for($page = max(1, $current - 2); $page <= min($totalPages, $current + 2); $page++) {
+                $pages[] = $page;
+            }
+            $pages = array_values(array_unique($pages));
+            sort($pages);
+            $out .= "<ul class='uk-pagination uk-flex-center'>";
+            if($current > 1) {
+                $out .= "<li><a href='" . $this->threadListUrl($status, $current - 1) . "' aria-label='"
+                    . $this->_('Previous page') . "'><span uk-pagination-previous></span></a></li>";
+            }
+            $previous = 0;
+            foreach($pages as $page) {
+                if($previous && $page > $previous + 1) $out .= "<li class='uk-disabled'><span>…</span></li>";
+                $active = $page === $current ? " class='uk-active' aria-current='page'" : '';
+                $out .= "<li{$active}><a href='" . $this->threadListUrl($status, $page) . "'>{$page}</a></li>";
+                $previous = $page;
+            }
+            if($current < $totalPages) {
+                $out .= "<li><a href='" . $this->threadListUrl($status, $current + 1) . "' aria-label='"
+                    . $this->_('Next page') . "'><span uk-pagination-next></span></a></li>";
+            }
+            $out .= '</ul>';
+        }
+        return $out . '</nav>';
+    }
+
+    protected function threadListUrl(string $status = '', int $page = 1): string {
+        $query = [];
+        if($status !== '') $query['status'] = $status;
+        if($page > 1) $query['p'] = $page;
+        return './' . ($query ? '?' . http_build_query($query) : '');
     }
 
     protected function renderThreads(array $threads): string {
@@ -190,16 +246,26 @@ class ProcessLiora extends Process {
             $referrer = trim((string)$thread['referrer_url']);
             $pageTitle = $san->entities((string)$thread['page_title']);
 
-            $out .= "<article class='uk-card uk-card-default uk-card-body uk-margin liora-admin-thread'>"
+            $threadId = (int)$thread['id'];
+            $bodyId = 'liora-thread-body-' . $threadId;
+            $out .= "<article id='liora-thread-{$threadId}' data-liora-thread='{$threadId}' "
+                . "class='uk-card uk-card-default uk-card-body uk-margin liora-admin-thread is-collapsed'>"
                 . "<header class='liora-admin-thread__header'><div class='liora-admin-thread__title'>"
                 . "<div class='liora-admin-thread__eyebrow'><span class='uk-label'>"
                 . $san->entities((string)$thread['status']) . "</span><time datetime='"
                 . $san->entities((string)$thread['updated_at']) . "'>"
                 . $san->entities((string)$thread['updated_at']) . "</time></div><h3>{$title}</h3></div>"
-                . "<div class='liora-admin-thread__stats'><strong>" . (int)$thread['message_count'] . '</strong><span>'
+                . "<div class='liora-admin-thread__controls'><div class='liora-admin-thread__stats'><strong>"
+                . (int)$thread['message_count'] . '</strong><span>'
                 . $this->_('messages') . '</span>'
                 . ($location !== '' ? "<small><i class='fa fa-map-marker' aria-hidden='true'></i> "
-                    . $san->entities($location) . '</small>' : '') . '</div></header>'
+                    . $san->entities($location) . '</small>' : '') . '</div>'
+                . "<button type='button' class='uk-button uk-button-default uk-button-small liora-admin-thread__toggle' "
+                . "data-liora-thread-toggle aria-expanded='false' aria-controls='{$bodyId}' "
+                . "data-open-label='" . $san->entities($this->_('Open')) . "' data-close-label='"
+                . $san->entities($this->_('Hide')) . "'><i class='fa fa-chevron-down' aria-hidden='true'></i> <span>"
+                . $this->_('Open') . "</span></button></div></header>"
+                . "<div id='{$bodyId}' class='liora-admin-thread__body' data-liora-thread-body hidden>"
                 . ($original !== '' ? "<div class='liora-admin-thread__query'><span>"
                     . $this->_('Original search') . "</span><strong>{$original}</strong></div>" : '')
                 . $this->renderMessages((array)$thread['messages']);
@@ -240,7 +306,8 @@ class ProcessLiora extends Process {
                 $selected = $status === $thread['status'] ? ' selected' : '';
                 $out .= "<option value='{$status}'{$selected}>{$status}</option>";
             }
-            $out .= "</select><button class='uk-button uk-button-default' type='submit'>" . $this->_('Update') . '</button></form></footer></article>';
+            $out .= "</select><button class='uk-button uk-button-default' type='submit'>" . $this->_('Update')
+                . '</button></form></footer></div></article>';
         }
         return $out;
     }

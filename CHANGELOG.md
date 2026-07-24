@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0 - 2026-07-23
+
+- Paginated Liora Insights conversations and limited message loading to the current page.
+- Collapsed every conversation by default so the dashboard remains easy to scan.
+- Remembered open conversations and the scroll position separately for each filter and page.
+- Kept the selected conversation anchored in the viewport while opening or hiding it.
+
 ## 1.4.1 - 2026-07-23
 
 - Added a configurable stay-on-site policy and editable prompt instruction.
