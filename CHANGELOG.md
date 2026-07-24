@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2 - 2026-07-23
+
+- Added inline conversation-title editing with Save and Cancel controls.
+- Saved renamed titles in LocalStorage and synchronized them to an owned server Thread without calling the AI provider or consuming the question rate limit.
+
 ## 1.2.1 - 2026-07-23
 
 - Named conversations from the first visitor question instead of the shared source-page title.

@@ -76,6 +76,9 @@ and its retention limit can be configured in the Liora module settings.
 Conversation labels come from the first visitor question, shortened at a word
 boundary. They do not reuse the shared source-page title or require a second AI
 provider request. Older LocalStorage labels are updated when history opens.
+Visitors can rename a conversation inline from the history list. The browser
+copy is saved immediately and the server Thread is updated when the current
+session or authenticated user still owns it.
 
 An optional welcome message appears only before the first question. It is not
 added to the conversation, stored in LocalStorage or sent to the AI.

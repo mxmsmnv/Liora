@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.2.1
+ * @version 1.2.2
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 121,
+            'version' => 122,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -236,11 +236,27 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $this->sendJson(['success' => false, 'error' => 'The form session expired. Reload the page.'], 403);
         }
 
+        $san = $this->wire('sanitizer');
+        $action = trim($san->name((string)($input['action'] ?? '')));
+        if($action === 'rename') {
+            $title = trim($san->text((string)($input['title'] ?? ''), ['maxLength' => 72]));
+            if($title === '') $this->sendJson(['success' => false, 'error' => 'Enter a conversation title.'], 400);
+            $thread = $this->store()->findOwnedThread(
+                (string)($input['threadId'] ?? ''),
+                $this->sessionHash(),
+                (int)($this->wire('user')->id ?? 0)
+            );
+            if(!$thread) $this->sendJson(['success' => false, 'error' => 'Conversation not found.'], 404);
+            if(!$this->store()->updateThreadTitle((int)$thread['id'], $title)) {
+                $this->sendJson(['success' => false, 'error' => 'The title could not be saved.'], 500);
+            }
+            $this->sendJson(['success' => true, 'thread_id' => $thread['public_id'], 'thread_title' => $title]);
+        }
+
         if(!$this->withinRateLimit()) {
             $this->sendJson(['success' => false, 'error' => 'Too many questions. Please try again later.'], 429);
         }
 
-        $san = $this->wire('sanitizer');
         $question = trim($san->textarea((string)($input['message'] ?? ''), [
             'maxLength' => (int)$this->setting('maxQuestionLength', 1000),
         ]));
@@ -460,6 +476,9 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'data-welcome-message' => $welcomeMessage,
             'data-expand-label' => $this->_('Expand conversation'),
             'data-collapse-label' => $this->_('Compact conversation'),
+            'data-edit-title-label' => $this->_('Edit title'),
+            'data-save-title-label' => $this->_('Save'),
+            'data-cancel-title-label' => $this->_('Cancel'),
         ];
         $dataAttrs = '';
         foreach($attrs as $name => $value) {

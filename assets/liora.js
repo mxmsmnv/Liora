@@ -151,6 +151,28 @@
             renderHistory();
         };
 
+        const syncThreadTitle = async (thread, title) => {
+            if(!thread?.id) return;
+            try {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                };
+                headers[`X-${widget.dataset.csrfName}`] = widget.dataset.csrfValue;
+                await fetch(widget.dataset.endpoint || '/agent/', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        action: 'rename',
+                        threadId: thread.id,
+                        title,
+                    }),
+                });
+            } catch {
+                // The LocalStorage title remains useful after a server session expires.
+            }
+        };
+
         const renderHistory = () => {
             if(!localHistory || !toolbar || !historyButton || !historyPanel) return;
             const threads = readThreads().slice(0, historyLimit);
@@ -170,6 +192,8 @@
             historyButton.disabled = threads.length === 0;
             historyPanel.replaceChildren();
             threads.forEach(thread => {
+                const row = document.createElement('div');
+                row.className = 'liora-widget__history-row';
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'liora-widget__history-item';
@@ -188,7 +212,45 @@
                     historyButton.setAttribute('aria-expanded', 'false');
                     if(lastMessage) scrollToMessageStart(widget, messages, lastMessage);
                 });
-                historyPanel.append(button);
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.className = 'liora-widget__history-edit';
+                editButton.textContent = '✎';
+                editButton.setAttribute('aria-label', `${widget.dataset.editTitleLabel || 'Edit title'}: ${title}`);
+                editButton.addEventListener('click', () => {
+                    const form = document.createElement('form');
+                    form.className = 'liora-widget__history-edit-form';
+                    const titleInput = document.createElement('input');
+                    titleInput.type = 'text';
+                    titleInput.maxLength = 72;
+                    titleInput.required = true;
+                    titleInput.value = title;
+                    titleInput.setAttribute('aria-label', widget.dataset.editTitleLabel || 'Edit title');
+                    const saveButton = document.createElement('button');
+                    saveButton.type = 'submit';
+                    saveButton.textContent = widget.dataset.saveTitleLabel || 'Save';
+                    const cancelButton = document.createElement('button');
+                    cancelButton.type = 'button';
+                    cancelButton.textContent = widget.dataset.cancelTitleLabel || 'Cancel';
+                    cancelButton.addEventListener('click', renderHistory);
+                    form.addEventListener('submit', event => {
+                        event.preventDefault();
+                        const nextTitle = titleInput.value.replace(/\s+/g, ' ').trim().slice(0, 72);
+                        if(!nextTitle) return;
+                        thread.title = nextTitle;
+                        thread.titleVersion = 2;
+                        if(currentThread?.id === thread.id) currentThread.title = nextTitle;
+                        writeThreads(threads, historyLimit);
+                        renderHistory();
+                        void syncThreadTitle(thread, nextTitle);
+                    });
+                    form.append(titleInput, saveButton, cancelButton);
+                    row.replaceChildren(form);
+                    titleInput.focus();
+                    titleInput.select();
+                });
+                row.append(button, editButton);
+                historyPanel.append(row);
             });
         };
 
