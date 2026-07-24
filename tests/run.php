@@ -68,7 +68,8 @@ $checks = [
     'admin message deletion' => str_contains($store, 'function deleteMessage(')
         && str_contains($process, "post('action') === 'delete_message'")
         && str_contains($process, "hasPermission('liora-delete')")
-        && str_contains($process, "name='message_id'"),
+        && str_contains($process, "name='message_id'")
+        && str_contains($module, 'ensurePermissions()'),
 ];
 
 foreach($checks as $label => $ok) {

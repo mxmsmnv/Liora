@@ -32,12 +32,14 @@ class Liora extends WireData implements Module, ConfigurableModule {
     }
 
     public function ___install(): void {
+        $this->ensurePermissions();
         $this->store()->ensureTable();
         $this->store()->migrateLegacyQueries();
         if((int)($this->store()->summary()['total'] ?? 0) === 0) $this->importLegacyHistory();
     }
 
     public function ___upgrade($fromVersion, $toVersion): void {
+        $this->ensurePermissions();
         $this->store()->ensureTable();
         $this->store()->migrateLegacyQueries();
         if((int)($this->store()->summary()['total'] ?? 0) === 0) $this->importLegacyHistory();
@@ -55,6 +57,21 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $this->storeInstance = $this->wire(new LioraStore());
         }
         return $this->storeInstance;
+    }
+
+    protected function ensurePermissions(): void {
+        $permissions = $this->wire('permissions');
+        foreach([
+            'liora-review' => 'Review Liora visitor conversations',
+            'liora-delete' => 'Delete individual Liora messages',
+        ] as $name => $title) {
+            $permission = $permissions->get($name);
+            if($permission && $permission->id) continue;
+            $permission = $permissions->add($name);
+            if(!$permission || !$permission->id) continue;
+            $permission->title = $title;
+            $permission->save();
+        }
     }
 
     public function isConfigured(): bool {
