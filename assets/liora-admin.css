@@ -153,6 +153,7 @@
     margin: 12px 0 0;
     padding: 0;
     border: 0;
+    font-style: normal;
 }
 .liora-admin-message--assistant pre {
     margin: 0;
@@ -244,9 +245,6 @@
 }
 .liora-admin-status { gap: 8px; }
 .liora-admin-settings {
-    position: sticky;
-    bottom: 12px;
-    z-index: 5;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -255,9 +253,8 @@
     padding: 14px 16px;
     border: 1px solid #dfe3e8;
     border-radius: 10px;
-    background: rgba(255, 255, 255, .96);
+    background: #fff;
     box-shadow: 0 8px 28px rgba(15, 23, 42, .12);
-    backdrop-filter: blur(8px);
 }
 .liora-admin-settings__model {
     display: grid;
