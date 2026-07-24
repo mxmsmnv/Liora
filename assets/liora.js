@@ -10,12 +10,88 @@
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
 
-    const safeMarkdown = value => {
+    const inlineMarkdown = value => {
         let html = escapeHtml(value);
+        html = html.replace(/`([^`]+?)`/g, '<code>$1</code>');
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(/`(.+?)`/g, '<code>$1</code>');
-        html = html.replace(/(^|\n)[*-] (.+)/g, '$1• $2');
+        html = html.replace(
+            /\[Source\s+(\d+)\]/gi,
+            '<sup class="liora-message__citation" aria-label="Source $1">[$1]</sup>'
+        );
         return html;
+    };
+
+    const safeMarkdown = value => {
+        const lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
+        const blocks = [];
+        let paragraph = [];
+        let listType = '';
+        let listItems = [];
+        let inCode = false;
+        let codeLines = [];
+
+        const flushParagraph = () => {
+            if(!paragraph.length) return;
+            blocks.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`);
+            paragraph = [];
+        };
+        const flushList = () => {
+            if(!listItems.length || !listType) return;
+            blocks.push(`<${listType}>${listItems.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</${listType}>`);
+            listType = '';
+            listItems = [];
+        };
+        const flushCode = () => {
+            if(!codeLines.length) return;
+            blocks.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+            codeLines = [];
+        };
+
+        lines.forEach(line => {
+            if(/^```/.test(line.trim())) {
+                flushParagraph();
+                flushList();
+                if(inCode) flushCode();
+                inCode = !inCode;
+                return;
+            }
+            if(inCode) {
+                codeLines.push(line);
+                return;
+            }
+            if(!line.trim()) {
+                flushParagraph();
+                flushList();
+                return;
+            }
+
+            const heading = line.match(/^\s*(#{1,4})\s+(.+?)\s*$/);
+            if(heading) {
+                flushParagraph();
+                flushList();
+                const level = Math.min(5, heading[1].length + 2);
+                blocks.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+                return;
+            }
+
+            const unordered = line.match(/^\s*[-*•]\s+(.+?)\s*$/);
+            const ordered = line.match(/^\s*\d+[.)]\s+(.+?)\s*$/);
+            if(unordered || ordered) {
+                flushParagraph();
+                const nextType = unordered ? 'ul' : 'ol';
+                if(listType && listType !== nextType) flushList();
+                listType = nextType;
+                listItems.push((unordered || ordered)[1]);
+                return;
+            }
+
+            flushList();
+            paragraph.push(line.trim());
+        });
+        flushParagraph();
+        flushList();
+        if(inCode || codeLines.length) flushCode();
+        return blocks.join('');
     };
 
     const newId = () => {
@@ -122,7 +198,7 @@
         const label = document.createElement('strong');
         label.textContent = sourcesLabel;
         list.append(label);
-        sources.forEach(source => {
+        sources.forEach((source, index) => {
             if(!source || !source.title) return;
             let url = '';
             try {
@@ -135,7 +211,7 @@
                 // A source title remains useful when its URL is invalid.
             }
             const sourceItem = url ? document.createElement('a') : document.createElement('span');
-            sourceItem.textContent = String(source.title).slice(0, 180);
+            sourceItem.textContent = `${index + 1}. ${String(source.title).slice(0, 180)}`;
             if(url) sourceItem.href = url;
             list.append(sourceItem);
         });

@@ -158,6 +158,11 @@ response-time metadata and provider-reported token usage. Completed-answer
 metadata is kept with the browser conversation so it remains available after
 the visitor restores that Thread.
 
+Assistant answers use a small, escaped Markdown renderer for headings,
+paragraphs, ordered and unordered lists, inline/code blocks, bold text and
+numbered Atlas citations. Raw model HTML is never trusted. Visitor messages use
+compact content-sized bubbles rather than expanding to the full answer width.
+
 ## Widget themes
 
 Widget behavior lives in `assets/liora.js`, base layout lives in

@@ -18,6 +18,9 @@
     --liora-shadow: 0 12px 30px rgba(41, 37, 36, .08);
     --liora-messages-max-height: min(64vh, 42rem);
     --liora-message-max-width: 46rem;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     background: var(--liora-surface);
     border: 1px solid var(--liora-border);
     border-radius: var(--liora-radius);
@@ -25,6 +28,7 @@
     color: var(--liora-text);
     overflow: hidden;
 }
+.liora-widget *, .liora-widget *::before, .liora-widget *::after { box-sizing:border-box; }
 .liora-widget__header { display:flex; gap:1rem; padding:1.25rem; background:linear-gradient(135deg,var(--liora-header-surface),var(--liora-surface)); }
 .liora-widget__header h2 { margin:0 0 .3rem; font-size:1.25rem; line-height:1.2; }
 .liora-widget__header p { margin:0; color:var(--liora-text-muted); }
@@ -51,12 +55,26 @@
 .liora-widget__history-edit-form button { padding:.5rem .65rem; border-radius:.4rem; background:var(--liora-hover-surface); font-size:.78rem; }
 .liora-widget__history-edit-form button[type="submit"] { background:var(--liora-accent); color:var(--liora-on-accent); }
 .liora-widget__messages:empty { display:none; }
-.liora-widget__messages { max-height:var(--liora-messages-max-height); overflow:auto; overflow-anchor:none; overscroll-behavior:contain; scroll-behavior:smooth; padding:1rem 1.25rem 0; background:var(--liora-surface-muted); }
+.liora-widget__messages { min-width:0; max-height:var(--liora-messages-max-height); overflow:auto; overflow-anchor:none; overscroll-behavior:contain; scroll-behavior:smooth; padding:1rem 1.25rem 0; background:var(--liora-surface-muted); }
 .liora-widget--expanded { overflow:visible; }
 .liora-widget--expanded .liora-widget__messages { max-height:none; overflow:visible; }
 .liora-message { max-width:var(--liora-message-max-width); margin:0 0 1rem; padding:.75rem 1rem; border-radius:.85rem; overflow-wrap:anywhere; scroll-margin-top:1rem; }
-.liora-message__content { white-space:pre-wrap; }
-.liora-message--user { margin-left:auto; background:var(--liora-accent); color:var(--liora-on-accent); }
+.liora-message__content { min-width:0; }
+.liora-message__content > :first-child { margin-top:0; }
+.liora-message__content > :last-child { margin-bottom:0; }
+.liora-message__content p { margin:0 0 .75rem; line-height:1.55; }
+.liora-message__content h3, .liora-message__content h4, .liora-message__content h5 { margin:1rem 0 .45rem; color:inherit; line-height:1.3; }
+.liora-message__content h3 { font-size:1.05rem; }
+.liora-message__content h4 { font-size:1rem; }
+.liora-message__content h5 { font-size:.95rem; }
+.liora-message__content ul, .liora-message__content ol { margin:.35rem 0 .85rem; padding-left:1.35rem; }
+.liora-message__content li { margin:.25rem 0; line-height:1.5; }
+.liora-message__content code { padding:.08rem .28rem; border-radius:.28rem; background:var(--liora-surface-muted); color:inherit; font-size:.9em; }
+.liora-message__content pre { margin:.65rem 0; padding:.75rem; overflow:auto; border:1px solid var(--liora-border); border-radius:.5rem; background:var(--liora-surface-muted); white-space:pre-wrap; }
+.liora-message__content pre code { padding:0; background:transparent; }
+.liora-message__citation { margin-left:.12rem; color:var(--liora-accent-dark); font-size:.72em; font-weight:700; vertical-align:super; }
+.liora-message--user { width:fit-content; max-width:min(85%, var(--liora-message-max-width)); margin-left:auto; background:var(--liora-accent); color:var(--liora-on-accent); }
+.liora-message--user .liora-message__content { white-space:pre-wrap; }
 .liora-message--assistant { background:var(--liora-surface); border:1px solid var(--liora-border); }
 .liora-message--welcome { color:var(--liora-text-muted); border-style:dashed; }
 .liora-message--error { background:var(--liora-danger-surface); border:1px solid var(--liora-danger-border); color:var(--liora-danger-text); }
@@ -85,6 +103,10 @@
 .liora-widget--compact { box-shadow:none; }
 .liora-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 @media (max-width: 640px) {
+    .liora-widget__header { padding:1rem; }
+    .liora-widget__toolbar { padding:.55rem .75rem; }
+    .liora-widget__messages { padding:.85rem .75rem 0; }
+    .liora-message--user { max-width:92%; }
     .liora-widget__form { flex-direction:column; }
     .liora-widget__form button { width:100%; }
     .liora-widget__history-edit-form { grid-template-columns:1fr 1fr; }

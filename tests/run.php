@@ -37,9 +37,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 160")
-        && str_contains($inputfield, "'version' => 160")
-        && str_contains($process, "'version' => 160"),
+    'release versions' => str_contains($module, "'version' => 161")
+        && str_contains($inputfield, "'version' => 161")
+        && str_contains($process, "'version' => 161"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -69,6 +69,12 @@ $checks = [
     'thinking state' => str_contains($module, "'data-thinking-label'")
         && str_contains($javascript, 'liora-message--thinking')
         && !str_contains($javascript, "submit.textContent = '…'"),
+    'safe structured answer rendering' => str_contains($javascript, 'const inlineMarkdown')
+        && str_contains($javascript, 'const safeMarkdown')
+        && str_contains($javascript, 'liora-message__citation')
+        && str_contains($javascript, 'escapeHtml(codeLines')
+        && str_contains($widgetCss, 'width:fit-content')
+        && str_contains($widgetCss, '.liora-message__content h3'),
     'stay-on-site policy' => str_contains($module, "attr('name', 'restrictExternalLinks')")
         && str_contains($module, "attr('name', 'externalLinksPrompt')")
         && str_contains($module, 'defaultExternalLinksPrompt()')

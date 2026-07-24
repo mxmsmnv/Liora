@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 - 2026-07-24
+
+- Made short visitor messages render as compact content-sized bubbles.
+- Added safe structured Markdown rendering for headings, paragraphs, lists and code.
+- Styled numbered Atlas citations and matched them to the rendered source list.
+- Hardened widget sizing against surrounding-site box-model and overflow rules.
+
 ## 1.6.0 - 2026-07-24
 
 - Added an adaptive widget theme that follows the visitor's light/dark operating-system preference.
