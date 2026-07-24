@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 - 2026-07-23
+
+- Added ProcessWire multi-language fields for every visitor-facing widget text.
+- Added one-click English, German, French, Spanish, Italian, Dutch, Polish and Russian text presets.
+- Localized JavaScript labels, conversation controls, source headings and fallback errors from the active page language.
+- Made the default AI prompt answer in the visitor's language.
+
 ## 1.2.2 - 2026-07-23
 
 - Added inline conversation-title editing with Save and Cancel controls.

@@ -17,6 +17,7 @@ Squad owns provider credentials and transport. Liora adds:
 - configurable welcome copy for an otherwise empty conversation;
 - optional retrieval-augmented answers from a selected Atlas collection;
 - an editable, friendly quality-review notice below the widget;
+- native ProcessWire multi-language widget text with ready-made language presets;
 - a **Setup → Liora Insights** review dashboard;
 - import of the legacy `ai` ProFields Table history.
 
@@ -46,6 +47,19 @@ $text = $liora->complete('Explain the difference between Cognac and Armagnac.');
 ```
 
 Never store provider credentials in Liora. Configure them in Squad.
+
+## Localization
+
+Every visitor-facing widget text uses ProcessWire's native multi-language
+configuration fields. Liora reads the active visitor language and falls back
+to the default-language value when a translation is empty.
+
+In **Modules → Liora → Widget texts and localization**, a language preset can
+fill all text fields at once. Presets are included for English, German, French,
+Spanish, Italian, Dutch, Polish and Russian. On a multi-language ProcessWire
+site, choose the target language before applying a preset and then submit the
+module configuration. The default AI prompt also asks the model to answer in
+the visitor's language.
 
 ## Optional Atlas retrieval
 

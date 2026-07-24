@@ -48,12 +48,12 @@
         item.innerHTML = safeMarkdown(text);
     };
 
-    const addSources = (item, sources) => {
+    const addSources = (item, sources, sourcesLabel = 'Sources') => {
         if(!item || !Array.isArray(sources) || !sources.length) return;
         const list = document.createElement('div');
         list.className = 'liora-message__sources';
         const label = document.createElement('strong');
-        label.textContent = 'Sources';
+        label.textContent = sourcesLabel;
         list.append(label);
         sources.forEach(source => {
             if(!source || !source.title) return;
@@ -94,9 +94,9 @@
         }
     };
 
-    const conversationTitle = value => {
+    const conversationTitle = (value, fallback = 'Conversation') => {
         const title = String(value || '').replace(/\s+/g, ' ').trim();
-        if(!title) return 'Conversation';
+        if(!title) return fallback;
         const maxLength = 72;
         if(title.length <= maxLength) return title;
         let short = title.slice(0, maxLength - 1).trimEnd();
@@ -122,6 +122,12 @@
         const localHistory = widget.dataset.localHistory === '1';
         const historyLimit = Math.max(1, Math.min(50, Number(widget.dataset.historyLimit || 10)));
         const welcomeMessage = String(widget.dataset.welcomeMessage || '').trim();
+        const previousLabel = widget.dataset.previousLabel || 'Previous conversations';
+        const conversationLabel = widget.dataset.conversationLabel || 'Conversation';
+        const sourcesLabel = widget.dataset.sourcesLabel || 'Sources';
+        const errorLabel = widget.dataset.errorLabel || 'Liora could not answer right now.';
+        const emptyErrorLabel = widget.dataset.emptyErrorLabel || 'Liora returned an empty answer.';
+        const connectionErrorLabel = widget.dataset.connectionErrorLabel || 'Connection error. Please try again.';
         let currentThread = null;
 
         const showWelcome = () => {
@@ -180,15 +186,15 @@
             threads.forEach(thread => {
                 if(Number(thread.titleVersion || 0) >= 2) return;
                 const firstQuestion = thread.messages.find(message => message.role === 'user')?.content || '';
-                thread.title = conversationTitle(firstQuestion);
+                thread.title = conversationTitle(firstQuestion, conversationLabel);
                 thread.titleVersion = 2;
                 migratedTitles = true;
             });
             if(migratedTitles) writeThreads(threads, historyLimit);
             toolbar.hidden = false;
             historyButton.textContent = threads.length
-                ? `Previous conversations (${threads.length})`
-                : 'Previous conversations';
+                ? `${previousLabel} (${threads.length})`
+                : previousLabel;
             historyButton.disabled = threads.length === 0;
             historyPanel.replaceChildren();
             threads.forEach(thread => {
@@ -197,7 +203,7 @@
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'liora-widget__history-item';
-                const title = thread.title || thread.messages.find(message => message.role === 'user')?.content || 'Conversation';
+                const title = thread.title || thread.messages.find(message => message.role === 'user')?.content || conversationLabel;
                 const date = thread.updatedAt ? new Date(thread.updatedAt).toLocaleString() : '';
                 button.innerHTML = `<strong>${escapeHtml(String(title).slice(0, 100))}</strong><span>${escapeHtml(date)}</span>`;
                 button.addEventListener('click', () => {
@@ -206,7 +212,7 @@
                     let lastMessage = null;
                     thread.messages.forEach(message => {
                         lastMessage = addMessage(messages, message.role, message.content, 'none');
-                        if(message.role === 'assistant') addSources(lastMessage, message.sources);
+                        if(message.role === 'assistant') addSources(lastMessage, message.sources, sourcesLabel);
                     });
                     historyPanel.hidden = true;
                     historyButton.setAttribute('aria-expanded', 'false');
@@ -292,7 +298,7 @@
             const question = input.value.trim();
             if(!question || input.disabled) return;
             if(!currentThread) currentThread = freshThread();
-            if(!currentThread.title) currentThread.title = conversationTitle(question);
+            if(!currentThread.title) currentThread.title = conversationTitle(question, conversationLabel);
             const priorHistory = currentThread.messages
                 .filter(message => message.role === 'user' || message.role === 'assistant')
                 .map(({role, content}) => ({role, content}));
@@ -333,7 +339,7 @@
 
                 const contentType = response.headers.get('content-type') || '';
                 if(wantsStream && response.body && contentType.includes('application/x-ndjson')) {
-                    if(!response.ok) throw new Error('Liora could not answer right now.');
+                    if(!response.ok) throw new Error(errorLabel);
                     assistantItem = addMessage(messages, 'assistant', '', 'none');
                     scrollToMessageStart(widget, messages, assistantItem);
                     const reader = response.body.getReader();
@@ -357,26 +363,26 @@
                                 assistantText += data.content || '';
                                 updateMessage(assistantItem, assistantText);
                             }
-                            if(data.type === 'error') throw new Error(data.error || 'Liora could not answer right now.');
+                            if(data.type === 'error') throw new Error(data.error || errorLabel);
                             if(data.type === 'done') {
                                 if(data.thread_id) currentThread.id = data.thread_id;
                                 if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
                             }
                         }
                     }
-                    if(!assistantText.trim()) throw new Error('Liora returned an empty answer.');
-                    addSources(assistantItem, ragSources);
+                    if(!assistantText.trim()) throw new Error(emptyErrorLabel);
+                    addSources(assistantItem, ragSources, sourcesLabel);
                 } else {
                     const data = await response.json().catch(() => ({}));
                     if(!response.ok || !data.success) {
-                        throw new Error(data.error || 'Liora could not answer right now.');
+                        throw new Error(data.error || errorLabel);
                     }
                     if(data.thread_id) currentThread.id = data.thread_id;
                     if(data.thread_title) currentThread.title = data.thread_title;
                     if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
                     assistantText = data.response || '';
                     assistantItem = addMessage(messages, 'assistant', assistantText, 'none');
-                    addSources(assistantItem, ragSources);
+                    addSources(assistantItem, ragSources, sourcesLabel);
                     scrollToMessageStart(widget, messages, assistantItem);
                 }
                 currentThread.messages.push({
@@ -389,11 +395,11 @@
                 if(assistantItem) scrollToMessageStart(widget, messages, assistantItem);
             } catch(error) {
                 if(assistantItem && !assistantText) assistantItem.remove();
-                addMessage(messages, 'error', error.message || 'Connection error. Please try again.');
+                addMessage(messages, 'error', error.message || connectionErrorLabel);
             } finally {
                 input.disabled = false;
                 submit.disabled = false;
-                submit.textContent = 'Ask';
+                submit.textContent = widget.dataset.askLabel || 'Ask';
             }
         });
     };

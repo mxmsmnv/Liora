@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.2.2
+ * @version 1.3.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 122,
+            'version' => 130,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -421,30 +421,18 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $context = trim((string)($options['context'] ?? ($page && $page->template ? $page->template->name : 'site')));
         $sourceUrl = (string)($options['sourceUrl'] ?? ($page && $page->id ? $page->url : ''));
         $pageId = (int)($options['pageId'] ?? ($page && $page->id ? $page->id : 0));
-        $heading = (string)($options['heading'] ?? $this->setting('widgetHeading', 'Still looking? Ask Liora'));
-        $intro = (string)($options['intro'] ?? $this->setting(
-            'widgetIntro',
-            'Tell me what you want to know. Your question also helps us improve this page.'
-        ));
+        $heading = (string)($options['heading'] ?? $this->widgetText('widgetHeading'));
+        $intro = (string)($options['intro'] ?? $this->widgetText('widgetIntro'));
         if($query !== '') {
             $intro = str_replace('{query}', $query, $intro);
         } else {
             $intro = str_replace('{query}', 'this topic', $intro);
         }
-        $placeholder = (string)($options['placeholder'] ?? $this->setting(
-            'widgetPlaceholder',
-            'Ask about products, pairings, brands or cocktails…'
-        ));
+        $placeholder = (string)($options['placeholder'] ?? $this->widgetText('widgetPlaceholder'));
         $welcomeMessage = (bool)($options['showWelcomeMessage'] ?? $this->setting('showWelcomeMessage', true))
-            ? trim((string)($options['welcomeMessage'] ?? $this->setting(
-                'welcomeMessage',
-                'Hi — I’m Liora. Ask me about a bottle, cocktail, pairing, brand, or anything you could not find on this page.'
-            )))
+            ? trim((string)($options['welcomeMessage'] ?? $this->widgetText('welcomeMessage')))
             : '';
-        $privacyNotice = trim((string)$this->setting(
-            'privacyNotice',
-            'Your questions help us improve LQRS and may be reviewed for quality. Please do not include personal details.'
-        ));
+        $privacyNotice = trim($this->widgetText('privacyNotice'));
         $theme = trim((string)($options['theme'] ?? $this->setting('widgetTheme', 'default')));
         $themeStyle = $this->themeStyle($theme);
         $endpoint = (string)$this->setting('endpoint', '/agent/');
@@ -474,11 +462,19 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'data-local-history' => (bool)$this->setting('localHistoryEnabled', true) ? '1' : '0',
             'data-history-limit' => (string)max(1, (int)$this->setting('localHistoryThreads', 10)),
             'data-welcome-message' => $welcomeMessage,
-            'data-expand-label' => $this->_('Expand conversation'),
-            'data-collapse-label' => $this->_('Compact conversation'),
-            'data-edit-title-label' => $this->_('Edit title'),
-            'data-save-title-label' => $this->_('Save'),
-            'data-cancel-title-label' => $this->_('Cancel'),
+            'data-previous-label' => $this->widgetText('widgetPrevious'),
+            'data-new-label' => $this->widgetText('widgetNew'),
+            'data-expand-label' => $this->widgetText('widgetExpand'),
+            'data-collapse-label' => $this->widgetText('widgetCompact'),
+            'data-edit-title-label' => $this->widgetText('widgetEditTitle'),
+            'data-save-title-label' => $this->widgetText('widgetSave'),
+            'data-cancel-title-label' => $this->widgetText('widgetCancel'),
+            'data-ask-label' => $this->widgetText('widgetAsk'),
+            'data-sources-label' => $this->widgetText('widgetSources'),
+            'data-conversation-label' => $this->widgetText('widgetConversation'),
+            'data-error-label' => $this->widgetText('widgetGenericError'),
+            'data-empty-error-label' => $this->widgetText('widgetEmptyError'),
+            'data-connection-error-label' => $this->widgetText('widgetConnectionError'),
         ];
         $dataAttrs = '';
         foreach($attrs as $name => $value) {
@@ -490,23 +486,23 @@ class Liora extends WireData implements Module, ConfigurableModule {
             . "<div class='liora-widget__header'><span class='liora-widget__icon' aria-hidden='true'>✦</span>"
             . "<div><h2>" . $san->entities($heading) . "</h2><p>" . $san->entities($intro) . "</p></div></div>"
             . "<div class='liora-widget__toolbar' data-liora-toolbar hidden>"
-            . "<button type='button' data-liora-history-button>" . $this->_('Previous conversations') . "</button>"
-            . "<button type='button' data-liora-new-button>" . $this->_('New conversation') . "</button>"
-            . "<button type='button' data-liora-expand-button aria-pressed='false'>" . $this->_('Expand conversation') . "</button></div>"
+            . "<button type='button' data-liora-history-button>" . $san->entities($this->widgetText('widgetPrevious')) . "</button>"
+            . "<button type='button' data-liora-new-button>" . $san->entities($this->widgetText('widgetNew')) . "</button>"
+            . "<button type='button' data-liora-expand-button aria-pressed='false'>" . $san->entities($this->widgetText('widgetExpand')) . "</button></div>"
             . "<div class='liora-widget__history' data-liora-history-panel hidden></div>"
             . "<div class='liora-widget__messages' data-liora-messages aria-live='polite'></div>"
             . "<form class='liora-widget__form' data-liora-form>"
-            . "<label class='liora-sr-only' for='{$id}-question'>" . $this->_('Ask Liora') . "</label>"
+            . "<label class='liora-sr-only' for='{$id}-question'>" . $san->entities($this->widgetText('widgetAskLiora')) . "</label>"
             . "<input id='{$id}-question' data-liora-input type='text' maxlength='"
             . (int)$this->setting('maxQuestionLength', 1000) . "' autocomplete='off' placeholder='"
             . $san->entities($placeholder) . "' required>"
-            . "<button type='submit' data-liora-submit>" . $this->_('Ask') . "</button>"
-            . "</form><div class='liora-widget__notes'><p>" . $this->_('AI can make mistakes. Please verify important information.') . '</p>'
+            . "<button type='submit' data-liora-submit>" . $san->entities($this->widgetText('widgetAsk')) . "</button>"
+            . "</form><div class='liora-widget__notes'><p>" . $san->entities($this->widgetText('widgetAiDisclaimer')) . '</p>'
             . ((bool)$this->setting('showPrivacyNotice', true) && $privacyNotice !== ''
                 ? "<p class='liora-widget__privacy'>" . $san->entities($privacyNotice) . '</p>'
                 : '')
             . ((bool)$this->setting('localHistoryEnabled', true)
-                ? "<p>" . $this->_('Conversation history stays in this browser so you can return to it later.') . '</p>'
+                ? "<p>" . $san->entities($this->widgetText('widgetHistoryNotice')) . '</p>'
                 : '')
             . '</div>'
             . "</section>";
@@ -654,17 +650,6 @@ class Liora extends WireData implements Module, ConfigurableModule {
         if((bool)$this->setting('showWelcomeMessage', true)) $field->attr('checked', 'checked');
         $fieldset->add($field);
 
-        $field = $modules->get('InputfieldTextarea');
-        $field->attr('name', 'welcomeMessage');
-        $field->label = $this->_('Welcome message');
-        $field->description = $this->_('Shown as a preview before the visitor asks the first question. It is not saved and is not sent to the AI.');
-        $field->attr('rows', 3);
-        $field->attr('value', (string)$this->setting(
-            'welcomeMessage',
-            'Hi — I’m Liora. Ask me about a bottle, cocktail, pairing, brand, or anything you could not find on this page.'
-        ));
-        $fieldset->add($field);
-
         $field = $modules->get('InputfieldSelect');
         $field->attr('name', 'widgetTheme');
         $field->label = $this->_('Widget theme');
@@ -681,18 +666,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->attr('max', 50);
         $fieldset->add($field);
 
-        foreach([
-            'widgetHeading' => [$this->_('Heading'), 'Still looking? Ask Liora'],
-            'widgetIntro' => [$this->_('Introduction'), 'Tell me what you want to know. Your question also helps us improve this page.'],
-            'widgetPlaceholder' => [$this->_('Question placeholder'), 'Ask about products, pairings, brands or cocktails…'],
-            'endpoint' => [$this->_('JSON endpoint'), '/agent/'],
-        ] as $name => [$label, $default]) {
-            $field = $modules->get('InputfieldText');
-            $field->attr('name', $name);
-            $field->label = $label;
-            $field->attr('value', (string)$this->setting($name, $default));
-            $fieldset->add($field);
-        }
+        $field = $modules->get('InputfieldText');
+        $field->attr('name', 'endpoint');
+        $field->label = $this->_('JSON endpoint');
+        $field->attr('value', (string)$this->setting('endpoint', '/agent/'));
+        $fieldset->add($field);
 
         $preview = $modules->get('InputfieldLiora');
         if($preview) {
@@ -701,6 +679,88 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $preview->value = $this->_('a bottle, cocktail or pairing');
             $preview->collapsed = Inputfield::collapsedYes;
             $fieldset->add($preview);
+        }
+        $inputfields->add($fieldset);
+
+        $fieldset = $modules->get('InputfieldFieldset');
+        $fieldset->label = $this->_('Widget texts and localization');
+        $fieldset->icon = 'language';
+        $fieldset->collapsed = Inputfield::collapsedYes;
+
+        $presets = $this->getWidgetTextPresets();
+        if($presets) {
+            $sanitizer = $this->wire('sanitizer');
+            $languages = $this->wire('languages');
+            $multiLanguage = $languages && $languages->count() > 1;
+            $languageSelect = '';
+            if($multiLanguage) {
+                $languageSelect = "<p><label>" . $this->_('Apply presets to language:') . " <select class='liora-preset-lang'>";
+                foreach($languages as $language) {
+                    $value = $language->isDefault() ? '' : (string)$language->id;
+                    $title = $sanitizer->entities($language->get('title|name'));
+                    $languageSelect .= "<option value='{$value}'>{$title}</option>";
+                }
+                $languageSelect .= '</select></label></p>';
+            }
+
+            $buttons = '';
+            foreach($presets as $code => $preset) {
+                $buttons .= "<button type='button' class='ui-button ui-state-default liora-preset-btn' data-preset='"
+                    . $sanitizer->entities($code) . "'><span class='ui-button-text'>"
+                    . $sanitizer->entities($preset['_label']) . '</span></button> ';
+            }
+            $json = $sanitizer->entities(json_encode($presets, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $markup = $modules->get('InputfieldMarkup');
+            $markup->attr('name', 'widgetTextPresets');
+            $markup->label = $this->_('Language presets');
+            $markup->description = $this->_('Fill all visitor-facing widget texts with a ready-made translation, then edit the wording if needed.');
+            if($multiLanguage) {
+                $markup->description .= ' ' . $this->_('Choose the target ProcessWire language before applying a preset.');
+            }
+            $markup->value = "<div class='liora-presets' data-presets=\"{$json}\">{$languageSelect}{$buttons}</div>"
+                . $this->widgetPresetScript();
+            $fieldset->add($markup);
+        }
+
+        $textFields = [
+            'widgetHeading' => [$this->_('Heading'), 'text', 50],
+            'widgetIntro' => [$this->_('Introduction'), 'textarea', 50],
+            'widgetPlaceholder' => [$this->_('Question placeholder'), 'text', 50],
+            'welcomeMessage' => [$this->_('Welcome message'), 'textarea', 50],
+            'privacyNotice' => [$this->_('Conversation quality notice'), 'textarea', 100],
+            'widgetPrevious' => [$this->_('Button: previous conversations'), 'text', 34],
+            'widgetNew' => [$this->_('Button: new conversation'), 'text', 33],
+            'widgetExpand' => [$this->_('Button: expand conversation'), 'text', 33],
+            'widgetCompact' => [$this->_('Button: compact conversation'), 'text', 34],
+            'widgetEditTitle' => [$this->_('Label: edit title'), 'text', 33],
+            'widgetSave' => [$this->_('Button: save'), 'text', 33],
+            'widgetCancel' => [$this->_('Button: cancel'), 'text', 34],
+            'widgetAsk' => [$this->_('Button: ask'), 'text', 33],
+            'widgetAskLiora' => [$this->_('Question field label'), 'text', 33],
+            'widgetSources' => [$this->_('Sources label'), 'text', 34],
+            'widgetConversation' => [$this->_('Untitled conversation label'), 'text', 33],
+            'widgetAiDisclaimer' => [$this->_('AI disclaimer'), 'textarea', 50],
+            'widgetHistoryNotice' => [$this->_('Browser history notice'), 'textarea', 50],
+            'widgetGenericError' => [$this->_('Generic error'), 'text', 34],
+            'widgetEmptyError' => [$this->_('Empty answer error'), 'text', 33],
+            'widgetConnectionError' => [$this->_('Connection error'), 'text', 33],
+        ];
+        $defaults = $this->widgetTextDefaults();
+        foreach($textFields as $name => [$label, $type, $width]) {
+            $field = $modules->get($type === 'textarea' ? 'InputfieldTextarea' : 'InputfieldText');
+            $field->attr('name', $name);
+            $field->label = $label;
+            $field->useLanguages = true;
+            if($type === 'textarea') $field->attr('rows', 3);
+            $field->columnWidth = $width;
+            $field->attr('value', (string)$this->setting($name, $defaults[$name] ?? ''));
+            if($languages) {
+                foreach($languages as $language) {
+                    if($language->isDefault()) continue;
+                    $field->set('value' . $language->id, (string)$this->get($name . '__' . $language->id));
+                }
+            }
+            $fieldset->add($field);
         }
         $inputfields->add($fieldset);
 
@@ -728,17 +788,6 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->attr('name', 'showPrivacyNotice');
         $field->label = $this->_('Show the quality and privacy notice');
         if((bool)$this->setting('showPrivacyNotice', true)) $field->attr('checked', 'checked');
-        $fieldset->add($field);
-
-        $field = $modules->get('InputfieldTextarea');
-        $field->attr('name', 'privacyNotice');
-        $field->label = $this->_('Conversation quality notice');
-        $field->description = $this->_('Keep this friendly and transparent. It appears below the question form.');
-        $field->attr('rows', 3);
-        $field->attr('value', (string)$this->setting(
-            'privacyNotice',
-            'Your questions help us improve LQRS and may be reviewed for quality. Please do not include personal details.'
-        ));
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldCheckbox');
@@ -1185,6 +1234,162 @@ class Liora extends WireData implements Module, ConfigurableModule {
         return mb_substr($scheme . '://' . $host . (str_starts_with($path, '/') ? $path : '/' . $path), 0, 2048);
     }
 
+    protected function widgetTextDefaults(): array {
+        return [
+            'widgetHeading' => 'Still looking? Ask Liora',
+            'widgetIntro' => 'Tell me what you want to know. Your question also helps us improve this page.',
+            'widgetPlaceholder' => 'Ask about products, pairings, brands or cocktails…',
+            'welcomeMessage' => 'Hi — I’m Liora. Ask me about a bottle, cocktail, pairing, brand, or anything you could not find on this page.',
+            'privacyNotice' => 'Your questions help us improve LQRS and may be reviewed for quality. Please do not include personal details.',
+            'widgetPrevious' => 'Previous conversations',
+            'widgetNew' => 'New conversation',
+            'widgetExpand' => 'Expand conversation',
+            'widgetCompact' => 'Compact conversation',
+            'widgetEditTitle' => 'Edit title',
+            'widgetSave' => 'Save',
+            'widgetCancel' => 'Cancel',
+            'widgetAsk' => 'Ask',
+            'widgetAskLiora' => 'Ask Liora',
+            'widgetSources' => 'Sources',
+            'widgetConversation' => 'Conversation',
+            'widgetAiDisclaimer' => 'AI can make mistakes. Please verify important information.',
+            'widgetHistoryNotice' => 'Conversation history stays in this browser so you can return to it later.',
+            'widgetGenericError' => 'Liora could not answer right now.',
+            'widgetEmptyError' => 'Liora returned an empty answer.',
+            'widgetConnectionError' => 'Connection error. Please try again.',
+        ];
+    }
+
+    protected function widgetText(string $name): string {
+        $defaults = $this->widgetTextDefaults();
+        $default = (string)($defaults[$name] ?? '');
+        $languages = $this->wire('languages');
+        $user = $this->wire('user');
+        if($languages && $user && $user->language && !$user->language->isDefault()) {
+            $translated = trim((string)$this->get($name . '__' . $user->language->id));
+            if($translated !== '') return $translated;
+        }
+        return (string)$this->setting($name, $default);
+    }
+
+    protected function getWidgetTextPresets(): array {
+        $english = $this->widgetTextDefaults();
+        return [
+            'en' => ['_label' => 'English'] + $english,
+            'de' => ['_label' => 'Deutsch',
+                'widgetHeading' => 'Noch Fragen? Fragen Sie Liora', 'widgetIntro' => 'Sagen Sie uns, was Sie wissen möchten. Ihre Frage hilft uns auch, diese Seite zu verbessern.',
+                'widgetPlaceholder' => 'Fragen Sie nach Produkten, Kombinationen, Marken oder Cocktails…', 'welcomeMessage' => 'Hallo — ich bin Liora. Fragen Sie mich nach einer Flasche, einem Cocktail, einer Kombination, einer Marke oder nach etwas, das Sie auf dieser Seite nicht gefunden haben.',
+                'privacyNotice' => 'Ihre Fragen helfen uns, LQRS zu verbessern, und können zur Qualitätskontrolle geprüft werden. Bitte geben Sie keine persönlichen Daten an.',
+                'widgetPrevious' => 'Frühere Gespräche', 'widgetNew' => 'Neues Gespräch', 'widgetExpand' => 'Gespräch erweitern', 'widgetCompact' => 'Gespräch verkleinern',
+                'widgetEditTitle' => 'Titel bearbeiten', 'widgetSave' => 'Speichern', 'widgetCancel' => 'Abbrechen', 'widgetAsk' => 'Fragen', 'widgetAskLiora' => 'Liora fragen',
+                'widgetSources' => 'Quellen', 'widgetConversation' => 'Gespräch', 'widgetAiDisclaimer' => 'KI kann Fehler machen. Bitte prüfen Sie wichtige Informationen.',
+                'widgetHistoryNotice' => 'Der Gesprächsverlauf bleibt in diesem Browser gespeichert, damit Sie später darauf zurückkommen können.',
+                'widgetGenericError' => 'Liora kann gerade nicht antworten.', 'widgetEmptyError' => 'Liora hat eine leere Antwort zurückgegeben.', 'widgetConnectionError' => 'Verbindungsfehler. Bitte versuchen Sie es erneut.'],
+            'fr' => ['_label' => 'Français',
+                'widgetHeading' => 'Vous cherchez encore ? Demandez à Liora', 'widgetIntro' => 'Dites-nous ce que vous souhaitez savoir. Votre question nous aide aussi à améliorer cette page.',
+                'widgetPlaceholder' => 'Posez une question sur les produits, accords, marques ou cocktails…', 'welcomeMessage' => 'Bonjour, je suis Liora. Demandez-moi conseil sur une bouteille, un cocktail, un accord, une marque ou ce que vous n’avez pas trouvé sur cette page.',
+                'privacyNotice' => 'Vos questions nous aident à améliorer LQRS et peuvent être examinées pour le contrôle qualité. N’indiquez pas de données personnelles.',
+                'widgetPrevious' => 'Conversations précédentes', 'widgetNew' => 'Nouvelle conversation', 'widgetExpand' => 'Agrandir la conversation', 'widgetCompact' => 'Réduire la conversation',
+                'widgetEditTitle' => 'Modifier le titre', 'widgetSave' => 'Enregistrer', 'widgetCancel' => 'Annuler', 'widgetAsk' => 'Demander', 'widgetAskLiora' => 'Demander à Liora',
+                'widgetSources' => 'Sources', 'widgetConversation' => 'Conversation', 'widgetAiDisclaimer' => 'L’IA peut se tromper. Vérifiez les informations importantes.',
+                'widgetHistoryNotice' => 'L’historique reste dans ce navigateur afin que vous puissiez y revenir plus tard.',
+                'widgetGenericError' => 'Liora ne peut pas répondre pour le moment.', 'widgetEmptyError' => 'Liora a renvoyé une réponse vide.', 'widgetConnectionError' => 'Erreur de connexion. Veuillez réessayer.'],
+            'es' => ['_label' => 'Español',
+                'widgetHeading' => '¿Aún buscas? Pregunta a Liora', 'widgetIntro' => 'Dinos qué quieres saber. Tu pregunta también nos ayuda a mejorar esta página.',
+                'widgetPlaceholder' => 'Pregunta sobre productos, maridajes, marcas o cócteles…', 'welcomeMessage' => 'Hola, soy Liora. Pregúntame por una botella, cóctel, maridaje, marca o cualquier cosa que no hayas encontrado en esta página.',
+                'privacyNotice' => 'Tus preguntas nos ayudan a mejorar LQRS y pueden revisarse para controlar la calidad. No incluyas datos personales.',
+                'widgetPrevious' => 'Conversaciones anteriores', 'widgetNew' => 'Nueva conversación', 'widgetExpand' => 'Ampliar conversación', 'widgetCompact' => 'Reducir conversación',
+                'widgetEditTitle' => 'Editar título', 'widgetSave' => 'Guardar', 'widgetCancel' => 'Cancelar', 'widgetAsk' => 'Preguntar', 'widgetAskLiora' => 'Preguntar a Liora',
+                'widgetSources' => 'Fuentes', 'widgetConversation' => 'Conversación', 'widgetAiDisclaimer' => 'La IA puede cometer errores. Verifica la información importante.',
+                'widgetHistoryNotice' => 'El historial permanece en este navegador para que puedas retomarlo más tarde.',
+                'widgetGenericError' => 'Liora no puede responder ahora.', 'widgetEmptyError' => 'Liora devolvió una respuesta vacía.', 'widgetConnectionError' => 'Error de conexión. Inténtalo de nuevo.'],
+            'it' => ['_label' => 'Italiano',
+                'widgetHeading' => 'Cerchi ancora? Chiedi a Liora', 'widgetIntro' => 'Dicci cosa vuoi sapere. La tua domanda ci aiuta anche a migliorare questa pagina.',
+                'widgetPlaceholder' => 'Chiedi di prodotti, abbinamenti, marchi o cocktail…', 'welcomeMessage' => 'Ciao, sono Liora. Chiedimi di una bottiglia, un cocktail, un abbinamento, un marchio o qualsiasi cosa tu non abbia trovato in questa pagina.',
+                'privacyNotice' => 'Le tue domande ci aiutano a migliorare LQRS e possono essere esaminate per il controllo qualità. Non inserire dati personali.',
+                'widgetPrevious' => 'Conversazioni precedenti', 'widgetNew' => 'Nuova conversazione', 'widgetExpand' => 'Espandi conversazione', 'widgetCompact' => 'Riduci conversazione',
+                'widgetEditTitle' => 'Modifica titolo', 'widgetSave' => 'Salva', 'widgetCancel' => 'Annulla', 'widgetAsk' => 'Chiedi', 'widgetAskLiora' => 'Chiedi a Liora',
+                'widgetSources' => 'Fonti', 'widgetConversation' => 'Conversazione', 'widgetAiDisclaimer' => 'L’IA può commettere errori. Verifica le informazioni importanti.',
+                'widgetHistoryNotice' => 'La cronologia resta in questo browser per poterla riprendere in seguito.',
+                'widgetGenericError' => 'Liora non può rispondere in questo momento.', 'widgetEmptyError' => 'Liora ha restituito una risposta vuota.', 'widgetConnectionError' => 'Errore di connessione. Riprova.'],
+            'nl' => ['_label' => 'Nederlands',
+                'widgetHeading' => 'Nog niet gevonden? Vraag het Liora', 'widgetIntro' => 'Vertel wat je wilt weten. Je vraag helpt ons ook deze pagina te verbeteren.',
+                'widgetPlaceholder' => 'Vraag naar producten, combinaties, merken of cocktails…', 'welcomeMessage' => 'Hallo, ik ben Liora. Vraag me naar een fles, cocktail, combinatie, merk of iets dat je niet op deze pagina kon vinden.',
+                'privacyNotice' => 'Je vragen helpen ons LQRS te verbeteren en kunnen voor kwaliteitscontrole worden bekeken. Deel geen persoonlijke gegevens.',
+                'widgetPrevious' => 'Eerdere gesprekken', 'widgetNew' => 'Nieuw gesprek', 'widgetExpand' => 'Gesprek vergroten', 'widgetCompact' => 'Gesprek verkleinen',
+                'widgetEditTitle' => 'Titel bewerken', 'widgetSave' => 'Opslaan', 'widgetCancel' => 'Annuleren', 'widgetAsk' => 'Vragen', 'widgetAskLiora' => 'Vraag Liora',
+                'widgetSources' => 'Bronnen', 'widgetConversation' => 'Gesprek', 'widgetAiDisclaimer' => 'AI kan fouten maken. Controleer belangrijke informatie.',
+                'widgetHistoryNotice' => 'De gespreksgeschiedenis blijft in deze browser zodat je later kunt terugkeren.',
+                'widgetGenericError' => 'Liora kan nu niet antwoorden.', 'widgetEmptyError' => 'Liora gaf een leeg antwoord.', 'widgetConnectionError' => 'Verbindingsfout. Probeer het opnieuw.'],
+            'pl' => ['_label' => 'Polski',
+                'widgetHeading' => 'Nadal szukasz? Zapytaj Liorę', 'widgetIntro' => 'Powiedz, czego chcesz się dowiedzieć. Twoje pytanie pomaga nam też ulepszać tę stronę.',
+                'widgetPlaceholder' => 'Zapytaj o produkty, połączenia, marki lub koktajle…', 'welcomeMessage' => 'Cześć, jestem Liora. Zapytaj mnie o butelkę, koktajl, połączenie, markę lub coś, czego nie udało Ci się znaleźć na tej stronie.',
+                'privacyNotice' => 'Twoje pytania pomagają nam ulepszać LQRS i mogą być przeglądane w celu kontroli jakości. Nie podawaj danych osobowych.',
+                'widgetPrevious' => 'Poprzednie rozmowy', 'widgetNew' => 'Nowa rozmowa', 'widgetExpand' => 'Rozwiń rozmowę', 'widgetCompact' => 'Zwiń rozmowę',
+                'widgetEditTitle' => 'Edytuj tytuł', 'widgetSave' => 'Zapisz', 'widgetCancel' => 'Anuluj', 'widgetAsk' => 'Zapytaj', 'widgetAskLiora' => 'Zapytaj Liorę',
+                'widgetSources' => 'Źródła', 'widgetConversation' => 'Rozmowa', 'widgetAiDisclaimer' => 'AI może popełniać błędy. Sprawdź ważne informacje.',
+                'widgetHistoryNotice' => 'Historia rozmów pozostaje w tej przeglądarce, aby można było wrócić do niej później.',
+                'widgetGenericError' => 'Liora nie może teraz odpowiedzieć.', 'widgetEmptyError' => 'Liora zwróciła pustą odpowiedź.', 'widgetConnectionError' => 'Błąd połączenia. Spróbuj ponownie.'],
+            'ru' => ['_label' => 'Русский',
+                'widgetHeading' => 'Не нашли ответ? Спросите Лиору', 'widgetIntro' => 'Расскажите, что вы хотите узнать. Ваш вопрос также поможет нам улучшить эту страницу.',
+                'widgetPlaceholder' => 'Спросите о напитках, сочетаниях, брендах или коктейлях…', 'welcomeMessage' => 'Привет! Я Лиора. Спросите меня о напитке, коктейле, сочетании, бренде или о том, чего вы не нашли на этой странице.',
+                'privacyNotice' => 'Ваши вопросы помогают нам улучшать LQRS и могут проверяться для контроля качества. Не указывайте личные данные.',
+                'widgetPrevious' => 'Прошлые разговоры', 'widgetNew' => 'Новый разговор', 'widgetExpand' => 'Развернуть разговор', 'widgetCompact' => 'Свернуть разговор',
+                'widgetEditTitle' => 'Изменить название', 'widgetSave' => 'Сохранить', 'widgetCancel' => 'Отмена', 'widgetAsk' => 'Спросить', 'widgetAskLiora' => 'Спросить Лиору',
+                'widgetSources' => 'Источники', 'widgetConversation' => 'Разговор', 'widgetAiDisclaimer' => 'ИИ может ошибаться. Проверяйте важную информацию.',
+                'widgetHistoryNotice' => 'История разговоров хранится в этом браузере, чтобы вы могли вернуться к ней позже.',
+                'widgetGenericError' => 'Лиора сейчас не может ответить.', 'widgetEmptyError' => 'Лиора вернула пустой ответ.', 'widgetConnectionError' => 'Ошибка соединения. Попробуйте ещё раз.'],
+        ];
+    }
+
+    protected function widgetPresetScript(): string {
+        return <<<'JS'
+<script>
+(function(){
+    var wrap = document.querySelector('.liora-presets');
+    if(!wrap || wrap.dataset.bound) return;
+    wrap.dataset.bound = '1';
+    var presets = JSON.parse(wrap.getAttribute('data-presets'));
+    var language = wrap.querySelector('.liora-preset-lang');
+    function fieldName(key){
+        var id = language ? language.value : '';
+        return id ? key + '__' + id : key;
+    }
+    function note(text){
+        var item = wrap.querySelector('.liora-preset-note');
+        if(!item) {
+            item = document.createElement('div');
+            item.className = 'liora-preset-note';
+            item.style.cssText = 'margin-top:8px;color:#059669';
+            wrap.appendChild(item);
+        }
+        item.textContent = text;
+    }
+    wrap.addEventListener('click', function(event){
+        var button = event.target.closest('.liora-preset-btn');
+        if(!button) return;
+        event.preventDefault();
+        var data = presets[button.getAttribute('data-preset')];
+        if(!data) return;
+        var count = 0;
+        Object.keys(data).forEach(function(key){
+            if(key === '_label') return;
+            var name = fieldName(key);
+            var input = document.querySelector('#Inputfield_' + name) || document.querySelector('[name="' + name + '"]');
+            if(input && 'value' in input) {
+                input.value = data[key];
+                input.dispatchEvent(new Event('input', {bubbles: true}));
+                count++;
+            }
+        });
+        note(count + ' fields filled — remember to Submit.');
+        button.blur();
+    });
+})();
+</script>
+JS;
+    }
+
     protected function setting(string $name, $default) {
         $value = $this->get($name);
         return $value === null || $value === '' ? $default : $value;
@@ -1193,6 +1398,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     protected function defaultSystemPrompt(): string {
         return 'You are Liora, the concise and trustworthy AI guide for LQRS. '
             . 'Answer questions about spirits, wine, beer, cocktails, brands, production, tasting, food pairings and responsible enjoyment. '
+            . 'Reply in the same language as the visitor unless they explicitly request another language. '
             . 'Use clear Markdown and no more than 250 words. Do not invent product availability, prices, ratings or facts. '
             . 'When uncertain, say so. Suggest relevant ways the visitor could refine their search. Promote responsible drinking.';
     }
