@@ -892,9 +892,12 @@ class Liora extends WireData implements Module, ConfigurableModule {
             foreach($hits as $hit) {
                 if(!is_array($hit) || (float)($hit['score'] ?? -1) < $minimumScore) continue;
                 $meta = (array)($hit['meta'] ?? []);
-                if(array_key_exists('public', $meta) && !$meta['public']) continue;
-
                 $pageId = (int)($meta['page_id'] ?? $meta['id'] ?? 0);
+                $hasPublicFlag = array_key_exists('public', $meta);
+                $explicitlyPublic = $hasPublicFlag
+                    && filter_var($meta['public'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+                if(($hasPublicFlag && !$explicitlyPublic) || ($pageId <= 0 && !$explicitlyPublic)) continue;
+
                 $title = trim((string)($meta['title'] ?? ''));
                 $url = $this->sanitizeSourceUrl((string)($meta['url'] ?? ''));
                 if($pageId > 0) {

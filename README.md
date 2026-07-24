@@ -59,6 +59,8 @@ Atlas performs retrieval; Squad still generates the answer. If Atlas is missing,
 not ready, empty or returns no sufficiently relevant excerpt, Liora continues
 with the regular non-RAG answer. Retrieved entries linked to ProcessWire pages
 are re-resolved and excluded unless the current page is public.
+Entries without a ProcessWire page ID must carry explicit `public: true`
+metadata before Liora will use them.
 
 ## Conversation model
 
