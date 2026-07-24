@@ -40,6 +40,13 @@ $checks = [
     'long answer usability' => str_contains($javascript, 'scrollToMessageStart') && str_contains($javascript, 'liora-widget--expanded'),
     'JSON widget theme' => is_array($theme) && !empty($theme['variables']['messagesMaxHeight'])
         && str_contains($module, 'themeStyle('),
+    'welcome preview' => str_contains($module, "attr('name', 'showWelcomeMessage')")
+        && str_contains($javascript, 'showWelcome')
+        && str_contains($javascript, 'dataset.lioraWelcome'),
+    'optional Atlas RAG' => str_contains($module, "attr('name', 'atlasEnabled')")
+        && str_contains($module, 'atlasContext(')
+        && str_contains($module, "'rag_sources'")
+        && str_contains($javascript, 'rag_sources'),
     'Inputfield class' => str_contains($inputfield, 'class InputfieldLiora extends Inputfield'),
     'Process class' => str_contains($process, 'class ProcessLiora extends Process'),
     'admin thread rendering' => str_contains($process, 'recentThreads') && str_contains($process, '<blockquote'),

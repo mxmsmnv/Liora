@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 - 2026-07-23
+
+- Added a configurable welcome message for empty conversations, with a separate enable/disable setting.
+- Added optional Atlas retrieval with collection, result-count, relevance and context-size settings.
+- Re-resolved Atlas page sources against current public access before including excerpts.
+- Added deterministic same-site source links to regular and streamed answers, including restored LocalStorage conversations.
+- Kept Atlas failures and empty results on a safe fallback path through the normal Squad answer.
+
 ## 1.1.1 - 2026-07-23
 
 - Kept the beginning of a newly generated long answer in view instead of forcing the conversation to its final line on every streamed delta.

@@ -48,6 +48,33 @@
         item.innerHTML = safeMarkdown(text);
     };
 
+    const addSources = (item, sources) => {
+        if(!item || !Array.isArray(sources) || !sources.length) return;
+        const list = document.createElement('div');
+        list.className = 'liora-message__sources';
+        const label = document.createElement('strong');
+        label.textContent = 'Sources';
+        list.append(label);
+        sources.forEach(source => {
+            if(!source || !source.title) return;
+            let url = '';
+            try {
+                const rawUrl = String(source.url || '').trim();
+                if(rawUrl) {
+                    const parsed = new URL(rawUrl, location.origin);
+                    if(parsed.origin === location.origin) url = parsed.pathname + parsed.search + parsed.hash;
+                }
+            } catch {
+                // A source title remains useful when its URL is invalid.
+            }
+            const sourceItem = url ? document.createElement('a') : document.createElement('span');
+            sourceItem.textContent = String(source.title).slice(0, 180);
+            if(url) sourceItem.href = url;
+            list.append(sourceItem);
+        });
+        if(list.children.length > 1) item.append(list);
+    };
+
     const readThreads = () => {
         try {
             const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -83,7 +110,16 @@
 
         const localHistory = widget.dataset.localHistory === '1';
         const historyLimit = Math.max(1, Math.min(50, Number(widget.dataset.historyLimit || 10)));
+        const welcomeMessage = String(widget.dataset.welcomeMessage || '').trim();
         let currentThread = null;
+
+        const showWelcome = () => {
+            messages.replaceChildren();
+            if(!welcomeMessage) return;
+            const item = addMessage(messages, 'assistant', welcomeMessage, 'none');
+            item.classList.add('liora-message--welcome');
+            item.dataset.lioraWelcome = '1';
+        };
 
         const freshThread = () => ({
             id: newId(),
@@ -125,6 +161,7 @@
                     let lastMessage = null;
                     thread.messages.forEach(message => {
                         lastMessage = addMessage(messages, message.role, message.content, 'none');
+                        if(message.role === 'assistant') addSources(lastMessage, message.sources);
                     });
                     historyPanel.hidden = true;
                     historyButton.setAttribute('aria-expanded', 'false');
@@ -136,7 +173,7 @@
 
         const startNew = () => {
             currentThread = null;
-            messages.replaceChildren();
+            showWelcome();
             if(historyPanel) historyPanel.hidden = true;
             if(historyButton) historyButton.setAttribute('aria-expanded', 'false');
             input.focus();
@@ -165,6 +202,7 @@
                 if(last) scrollToMessageStart(widget, messages, last);
             });
         }
+        showWelcome();
 
         form.addEventListener('submit', async event => {
             event.preventDefault();
@@ -176,6 +214,7 @@
                 .filter(message => message.role === 'user' || message.role === 'assistant')
                 .map(({role, content}) => ({role, content}));
             currentThread.messages.push({role: 'user', content: question, createdAt: new Date().toISOString()});
+            messages.querySelector('[data-liora-welcome]')?.remove();
             addMessage(messages, 'user', question);
             persist();
             input.value = '';
@@ -185,6 +224,7 @@
 
             let assistantItem = null;
             let assistantText = '';
+            let ragSources = [];
             try {
                 const headers = {
                     'Content-Type': 'application/json',
@@ -232,23 +272,30 @@
                                 updateMessage(assistantItem, assistantText);
                             }
                             if(data.type === 'error') throw new Error(data.error || 'Liora could not answer right now.');
-                            if(data.type === 'done' && data.thread_id) currentThread.id = data.thread_id;
+                            if(data.type === 'done') {
+                                if(data.thread_id) currentThread.id = data.thread_id;
+                                if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
+                            }
                         }
                     }
                     if(!assistantText.trim()) throw new Error('Liora returned an empty answer.');
+                    addSources(assistantItem, ragSources);
                 } else {
                     const data = await response.json().catch(() => ({}));
                     if(!response.ok || !data.success) {
                         throw new Error(data.error || 'Liora could not answer right now.');
                     }
                     if(data.thread_id) currentThread.id = data.thread_id;
+                    if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
                     assistantText = data.response || '';
                     assistantItem = addMessage(messages, 'assistant', assistantText, 'none');
+                    addSources(assistantItem, ragSources);
                     scrollToMessageStart(widget, messages, assistantItem);
                 }
                 currentThread.messages.push({
                     role: 'assistant',
                     content: assistantText,
+                    sources: ragSources,
                     createdAt: new Date().toISOString(),
                 });
                 persist();

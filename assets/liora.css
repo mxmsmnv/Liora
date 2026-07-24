@@ -44,7 +44,12 @@
 .liora-message { max-width:var(--liora-message-max-width); margin:0 0 1rem; padding:.75rem 1rem; border-radius:.85rem; white-space:pre-wrap; overflow-wrap:anywhere; scroll-margin-top:1rem; }
 .liora-message--user { margin-left:auto; background:var(--liora-accent); color:#fff; }
 .liora-message--assistant { background:var(--liora-surface); border:1px solid var(--liora-border); }
+.liora-message--welcome { color:var(--liora-text-muted); border-style:dashed; }
 .liora-message--error { background:var(--liora-danger-surface); border:1px solid var(--liora-danger-border); color:var(--liora-danger-text); }
+.liora-message__sources { display:flex; flex-wrap:wrap; gap:.35rem .65rem; margin-top:.75rem; padding-top:.65rem; border-top:1px solid var(--liora-border); color:var(--liora-text-muted); font-size:.75rem; white-space:normal; }
+.liora-message__sources strong { width:100%; color:var(--liora-text); }
+.liora-message__sources a, .liora-message__sources span { color:inherit; }
+.liora-message__sources a:hover { color:var(--liora-accent-dark); }
 .liora-widget__form { display:flex; gap:.65rem; padding:1rem 1.25rem .5rem; }
 .liora-widget__form input { min-width:0; flex:1; padding:.8rem 1rem; border:1px solid #d6d3d1; border-radius:.65rem; font:inherit; }
 .liora-widget__form input:focus { outline:2px solid #fecdd3; border-color:var(--liora-accent); }

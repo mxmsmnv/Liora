@@ -14,6 +14,8 @@ Squad owns provider credentials and transport. Liora adds:
 - browser-only conversation history that visitors explicitly restore;
 - privacy-conscious demand tracking without raw IP addresses;
 - optional country and city enrichment when the GeoIP module is installed;
+- configurable welcome copy for an otherwise empty conversation;
+- optional retrieval-augmented answers from a selected Atlas collection;
 - an editable, friendly quality-review notice below the widget;
 - a **Setup → Liora Insights** review dashboard;
 - import of the legacy `ai` ProFields Table history.
@@ -45,6 +47,19 @@ $text = $liora->complete('Explain the difference between Cognac and Armagnac.');
 
 Never store provider credentials in Liora. Configure them in Squad.
 
+## Optional Atlas retrieval
+
+Enable **Atlas knowledge** in the module settings after Atlas has a populated
+collection (the default name is `site`). Liora retrieves a small set of relevant
+public-page excerpts, labels them as untrusted reference material and sends them
+to the selected Squad model with the visitor's question. Exact source links are
+shown below the answer.
+
+Atlas performs retrieval; Squad still generates the answer. If Atlas is missing,
+not ready, empty or returns no sufficiently relevant excerpt, Liora continues
+with the regular non-RAG answer. Retrieved entries linked to ProcessWire pages
+are re-resolved and excluded unless the current page is public.
+
 ## Conversation model
 
 The server stores one row per conversation in `liora_threads` and chronological
@@ -55,6 +70,9 @@ copy can safely seed a new server-side conversation after a session expires.
 Local history is not loaded into the widget automatically. The visitor uses
 **Previous conversations** to choose a browser-stored thread. It can be disabled
 and its retention limit can be configured in the Liora module settings.
+
+An optional welcome message appears only before the first question. It is not
+added to the conversation, stored in LocalStorage or sent to the AI.
 
 Long answers keep their beginning in view while provider deltas arrive. The
 conversation grows until its responsive height limit; **Expand conversation**
