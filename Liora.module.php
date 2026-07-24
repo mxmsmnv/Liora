@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.5.1
+ * @version 1.6.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 151,
+            'version' => 160,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -457,11 +457,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
             : '';
         $privacyNotice = trim($this->widgetText('privacyNotice'));
         $theme = trim((string)($options['theme'] ?? $this->setting('widgetTheme', 'default')));
-        $themeStyle = $this->themeStyle($theme);
         $endpoint = (string)$this->setting('endpoint', '/agent/');
         $csrfName = $this->wire('session')->CSRF->getTokenName();
         $csrfValue = $this->wire('session')->CSRF->getTokenValue();
         $id = 'liora-' . substr(hash('sha256', microtime(true) . random_int(1, PHP_INT_MAX)), 0, 12);
+        $themeCss = $this->themeCss($theme, $id);
         $compact = !empty($options['compact']) ? ' liora-widget--compact' : '';
         $assets = '';
 
@@ -512,8 +512,8 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $dataAttrs .= ' ' . $name . '="' . $san->entities($value) . '"';
         }
 
-        return $assets
-            . "<section id='{$id}' class='liora-widget{$compact}' style='" . $san->entities($themeStyle) . "'{$dataAttrs}>"
+        return $assets . $themeCss
+            . "<section id='{$id}' class='liora-widget{$compact}'{$dataAttrs}>"
             . "<div class='liora-widget__header'><span class='liora-widget__icon' aria-hidden='true'>✦</span>"
             . "<div><h2>" . $san->entities($heading) . "</h2><p>" . $san->entities($intro) . "</p></div></div>"
             . "<div class='liora-widget__toolbar' data-liora-toolbar hidden>"
@@ -731,8 +731,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
         $field = $modules->get('InputfieldSelect');
         $field->attr('name', 'widgetTheme');
-        $field->label = $this->_('Widget theme');
-        $field->description = $this->_('Themes are JSON files in Liora/themes. They control safe visual tokens without changing widget behavior.');
+        $field->label = $this->_('Widget color theme');
+        $field->description = $this->_(
+            'Adaptive follows the visitor’s operating-system light/dark preference and switches live. '
+            . 'Choose Light or Dark only when the website forces one color scheme.'
+        );
         foreach($this->themeOptions() as $value => $label) $field->addOption($value, $label);
         $field->attr('value', (string)$this->setting('widgetTheme', 'default'));
         $fieldset->add($field);
@@ -1188,6 +1191,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
             if(!is_array($data)) continue;
             $options[$key] = trim((string)($data['name'] ?? '')) ?: ucfirst($key);
         }
+        if(isset($options['default'])) {
+            $default = $options['default'];
+            unset($options['default']);
+            $options = ['default' => $default] + $options;
+        }
         return $options ?: ['default' => 'Liora default'];
     }
 
@@ -1236,20 +1244,30 @@ PHP;
             . $this->_('Open the complete integration guide') . '</a></p></div>';
     }
 
-    protected function themeStyle(string $theme): string {
+    protected function themeData(string $theme): array {
         $theme = preg_match('/^[a-z0-9_-]+$/i', $theme) ? $theme : 'default';
         $path = __DIR__ . '/themes/' . $theme . '.json';
         if(!is_file($path)) $path = __DIR__ . '/themes/default.json';
         $data = is_file($path) ? json_decode((string)file_get_contents($path), true) : [];
-        $variables = is_array($data) ? (array)($data['variables'] ?? []) : [];
+        return is_array($data) ? $data : [];
+    }
+
+    protected function themeStyle(string $theme, string $group = 'variables'): string {
+        $data = $this->themeData($theme);
+        $variables = (array)($data[$group] ?? []);
         $allowed = [
             'accent' => '--liora-accent',
             'accentDark' => '--liora-accent-dark',
+            'onAccent' => '--liora-on-accent',
             'surface' => '--liora-surface',
             'surfaceMuted' => '--liora-surface-muted',
+            'headerSurface' => '--liora-header-surface',
+            'hoverSurface' => '--liora-hover-surface',
+            'inputSurface' => '--liora-input-surface',
             'text' => '--liora-text',
             'textMuted' => '--liora-text-muted',
             'border' => '--liora-border',
+            'focusRing' => '--liora-focus-ring',
             'dangerSurface' => '--liora-danger-surface',
             'dangerBorder' => '--liora-danger-border',
             'dangerText' => '--liora-danger-text',
@@ -1265,6 +1283,23 @@ PHP;
             $style[] = $property . ':' . mb_substr($value, 0, 200);
         }
         return implode(';', $style);
+    }
+
+    protected function themeCss(string $theme, string $id): string {
+        $data = $this->themeData($theme);
+        $mode = (string)($data['mode'] ?? 'light');
+        if(!in_array($mode, ['auto', 'light', 'dark'], true)) $mode = 'light';
+        $base = $this->themeStyle($theme);
+        $dark = $mode === 'auto' ? $this->themeStyle($theme, 'darkVariables') : '';
+        $colorScheme = $mode === 'auto'
+            ? ($dark !== '' ? 'light dark' : 'light')
+            : $mode;
+        $selector = '#' . preg_replace('/[^a-z0-9_-]/i', '', $id);
+        $css = $selector . '{color-scheme:' . $colorScheme . ';' . $base . '}';
+        if($dark !== '') {
+            $css .= '@media (prefers-color-scheme:dark){' . $selector . '{' . $dark . '}}';
+        }
+        return "<style data-liora-theme='{$mode}'>{$css}</style>";
     }
 
     protected function modelOptions(): array {

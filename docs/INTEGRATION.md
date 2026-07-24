@@ -49,6 +49,11 @@ echo $liora->renderWidget([
 ]);
 ```
 
+Use `theme => 'default'` for the adaptive Light + Dark theme, `light` to force
+the light palette, or `dark` to force the dark palette. The adaptive theme uses
+`prefers-color-scheme` and switches live when the visitor changes the operating
+system appearance.
+
 For reuse across templates, put that code in an include such as
 `site/templates/includes/liora.php`:
 

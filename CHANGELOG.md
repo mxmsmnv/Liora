@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0 - 2026-07-24
+
+- Added an adaptive widget theme that follows the visitor's light/dark operating-system preference.
+- Added explicit Light and Dark theme choices for sites that force a color scheme.
+- Made live system-theme changes apply through `prefers-color-scheme` without reloading the page.
+- Replaced hard-coded light widget colors with validated JSON theme tokens.
+
 ## 1.5.1 - 2026-07-24
 
 - Clarified that the widget setting controls the ready-made chat UI rather than the whole Liora service.

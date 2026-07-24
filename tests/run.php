@@ -12,6 +12,8 @@ $required = [
     'assets/liora.js',
     'docs/INTEGRATION.md',
     'themes/default.json',
+    'themes/light.json',
+    'themes/dark.json',
 ];
 
 foreach($required as $file) {
@@ -27,14 +29,17 @@ $inputfield = file_get_contents($root . '/InputfieldLiora.module.php');
 $process = file_get_contents($root . '/ProcessLiora.module.php');
 $javascript = file_get_contents($root . '/assets/liora.js');
 $adminJavascript = file_get_contents($root . '/assets/liora-admin.js');
+$widgetCss = file_get_contents($root . '/assets/liora.css');
 $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
+$lightTheme = json_decode(file_get_contents($root . '/themes/light.json'), true);
+$darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 151")
-        && str_contains($inputfield, "'version' => 151")
-        && str_contains($process, "'version' => 151"),
+    'release versions' => str_contains($module, "'version' => 160")
+        && str_contains($inputfield, "'version' => 160")
+        && str_contains($process, "'version' => 160"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -71,6 +76,15 @@ $checks = [
         && str_contains($module, 'isSameSiteUrl('),
     'JSON widget theme' => is_array($theme) && !empty($theme['variables']['messagesMaxHeight'])
         && str_contains($module, 'themeStyle('),
+    'adaptive dark widget theme' => ($theme['mode'] ?? '') === 'auto'
+        && !empty($theme['darkVariables']['surface'])
+        && ($lightTheme['mode'] ?? '') === 'light'
+        && ($darkTheme['mode'] ?? '') === 'dark'
+        && str_contains($module, 'prefers-color-scheme:dark')
+        && str_contains($module, 'themeCss(')
+        && str_contains($module, 'color-scheme:')
+        && str_contains($widgetCss, 'var(--liora-header-surface)')
+        && str_contains($widgetCss, 'var(--liora-input-surface)'),
     'welcome preview' => str_contains($module, "attr('name', 'showWelcomeMessage')")
         && str_contains($javascript, 'showWelcome')
         && str_contains($javascript, 'dataset.lioraWelcome'),

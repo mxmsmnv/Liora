@@ -1,0 +1,25 @@
+{
+  "name": "LQRS Light",
+  "mode": "light",
+  "variables": {
+    "accent": "#e11d48",
+    "accentDark": "#be123c",
+    "onAccent": "#ffffff",
+    "surface": "#ffffff",
+    "surfaceMuted": "#fafaf9",
+    "headerSurface": "#fff1f2",
+    "hoverSurface": "#fff7f8",
+    "inputSurface": "#ffffff",
+    "text": "#292524",
+    "textMuted": "#78716c",
+    "border": "#e7e5e4",
+    "focusRing": "#fecdd3",
+    "dangerSurface": "#fff1f2",
+    "dangerBorder": "#fecdd3",
+    "dangerText": "#9f1239",
+    "radius": "1rem",
+    "shadow": "0 12px 30px rgba(41, 37, 36, .08)",
+    "messagesMaxHeight": "min(64vh, 42rem)",
+    "messageMaxWidth": "46rem"
+  }
+}

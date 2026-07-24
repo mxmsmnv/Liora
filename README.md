@@ -164,6 +164,13 @@ Widget behavior lives in `assets/liora.js`, base layout lives in
 `assets/liora.css`, and visual tokens live in `themes/*.json`. Select the active
 theme in the Liora module settings or pass `theme` to `renderWidget()`.
 
+The default **LQRS Adaptive (system)** theme contains both `variables` and
+`darkVariables`. It follows `prefers-color-scheme` and responds immediately
+when the visitor changes the operating-system appearance. **LQRS Light** and
+**LQRS Dark** remain available when the surrounding website deliberately
+forces one scheme.
+
 Theme JSON can set the allowlisted colors, radius, shadow, message width and
 responsive conversation height. Liora reads the file server-side and emits
-validated CSS custom properties, so the browser does not need another request.
+scoped, validated CSS custom properties, so the browser does not need another
+request.
