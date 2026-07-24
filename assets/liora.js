@@ -23,18 +23,37 @@
         return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
     };
 
-    const addMessage = (container, role, text = '') => {
+    const scrollToMessageStart = (widget, container, item, behavior = 'smooth') => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if(widget.classList.contains('liora-widget--expanded')) {
+                item.scrollIntoView({behavior, block: 'start'});
+                return;
+            }
+            const top = item.getBoundingClientRect().top
+                - container.getBoundingClientRect().top
+                + container.scrollTop
+                - 12;
+            container.scrollTo({top: Math.max(0, top), behavior});
+        }));
+    };
+
+    const scrollToBottom = (container, behavior = 'smooth') => {
+        requestAnimationFrame(() => {
+            container.scrollTo({top: container.scrollHeight, behavior});
+        });
+    };
+
+    const addMessage = (container, role, text = '', scroll = 'bottom') => {
         const item = document.createElement('div');
         item.className = `liora-message liora-message--${role}`;
         item.innerHTML = safeMarkdown(text);
         container.append(item);
-        container.scrollTop = container.scrollHeight;
+        if(scroll === 'bottom') scrollToBottom(container);
         return item;
     };
 
-    const updateMessage = (container, item, text) => {
+    const updateMessage = (item, text) => {
         item.innerHTML = safeMarkdown(text);
-        container.scrollTop = container.scrollHeight;
     };
 
     const readThreads = () => {
@@ -66,6 +85,7 @@
         const toolbar = widget.querySelector('[data-liora-toolbar]');
         const historyButton = widget.querySelector('[data-liora-history-button]');
         const newButton = widget.querySelector('[data-liora-new-button]');
+        const expandButton = widget.querySelector('[data-liora-expand-button]');
         const historyPanel = widget.querySelector('[data-liora-history-panel]');
         if(!form || !input || !submit || !messages) return;
 
@@ -110,9 +130,13 @@
                 button.addEventListener('click', () => {
                     currentThread = thread;
                     messages.replaceChildren();
-                    thread.messages.forEach(message => addMessage(messages, message.role, message.content));
+                    let lastMessage = null;
+                    thread.messages.forEach(message => {
+                        lastMessage = addMessage(messages, message.role, message.content, 'none');
+                    });
                     historyPanel.hidden = true;
                     historyButton.setAttribute('aria-expanded', 'false');
+                    if(lastMessage) scrollToMessageStart(widget, messages, lastMessage);
                     input.focus();
                 });
                 historyPanel.append(button);
@@ -127,6 +151,8 @@
             input.focus();
         };
 
+        if(toolbar) toolbar.hidden = false;
+        if(historyButton) historyButton.hidden = !localHistory;
         if(localHistory && toolbar && historyButton && newButton && historyPanel) {
             renderHistory();
             historyButton.addEventListener('click', () => {
@@ -134,6 +160,19 @@
                 historyButton.setAttribute('aria-expanded', historyPanel.hidden ? 'false' : 'true');
             });
             newButton.addEventListener('click', startNew);
+        } else if(newButton) {
+            newButton.addEventListener('click', startNew);
+        }
+        if(expandButton) {
+            expandButton.addEventListener('click', () => {
+                const expanded = widget.classList.toggle('liora-widget--expanded');
+                expandButton.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+                expandButton.textContent = expanded
+                    ? widget.dataset.collapseLabel || 'Compact conversation'
+                    : widget.dataset.expandLabel || 'Expand conversation';
+                const last = messages.lastElementChild;
+                if(last) scrollToMessageStart(widget, messages, last);
+            });
         }
 
         form.addEventListener('submit', async event => {
@@ -181,7 +220,8 @@
                 const contentType = response.headers.get('content-type') || '';
                 if(wantsStream && response.body && contentType.includes('application/x-ndjson')) {
                     if(!response.ok) throw new Error('Liora could not answer right now.');
-                    assistantItem = addMessage(messages, 'assistant', '');
+                    assistantItem = addMessage(messages, 'assistant', '', 'none');
+                    scrollToMessageStart(widget, messages, assistantItem);
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let buffer = '';
@@ -198,7 +238,7 @@
                             if(data.type === 'thread' && data.thread_id) currentThread.id = data.thread_id;
                             if(data.type === 'delta') {
                                 assistantText += data.content || '';
-                                updateMessage(messages, assistantItem, assistantText);
+                                updateMessage(assistantItem, assistantText);
                             }
                             if(data.type === 'error') throw new Error(data.error || 'Liora could not answer right now.');
                             if(data.type === 'done' && data.thread_id) currentThread.id = data.thread_id;
@@ -212,7 +252,8 @@
                     }
                     if(data.thread_id) currentThread.id = data.thread_id;
                     assistantText = data.response || '';
-                    assistantItem = addMessage(messages, 'assistant', assistantText);
+                    assistantItem = addMessage(messages, 'assistant', assistantText, 'none');
+                    scrollToMessageStart(widget, messages, assistantItem);
                 }
                 currentThread.messages.push({
                     role: 'assistant',

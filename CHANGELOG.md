@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 - 2026-07-23
+
+- Kept the beginning of a newly generated long answer in view instead of forcing the conversation to its final line on every streamed delta.
+- Made the conversation height responsive and added an expand/compact control for reading the full thread without an inner scrollbar.
+- Made restored conversations reliably reveal the beginning of their latest message after layout.
+- Moved widget design tokens into selectable JSON theme files under `themes/`.
+
 ## 1.1.0 - 2026-07-23
 
 - Replaced flat request records with conversation threads and chronological messages.

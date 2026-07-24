@@ -56,6 +56,20 @@ Local history is not loaded into the widget automatically. The visitor uses
 **Previous conversations** to choose a browser-stored thread. It can be disabled
 and its retention limit can be configured in the Liora module settings.
 
+Long answers keep their beginning in view while provider deltas arrive. The
+conversation grows until its responsive height limit; **Expand conversation**
+removes the inner scrollbar when the visitor wants to read the complete thread.
+
 When Squad supports the selected provider, Liora sends newline-delimited JSON
 and renders provider deltas as they arrive. Disabling streaming keeps the
 regular JSON response flow.
+
+## Widget themes
+
+Widget behavior lives in `assets/liora.js`, base layout lives in
+`assets/liora.css`, and visual tokens live in `themes/*.json`. Select the active
+theme in the Liora module settings or pass `theme` to `renderWidget()`.
+
+Theme JSON can set the allowlisted colors, radius, shadow, message width and
+responsive conversation height. Liora reads the file server-side and emits
+validated CSS custom properties, so the browser does not need another request.

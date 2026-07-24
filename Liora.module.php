@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.1.0
+ * @version 1.1.1
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 110,
+            'version' => 111,
             'summary' => 'AI answer CTA with configurable models and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -406,6 +406,8 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'privacyNotice',
             'Your questions help us improve LQRS and may be reviewed for quality. Please do not include personal details.'
         ));
+        $theme = trim((string)($options['theme'] ?? $this->setting('widgetTheme', 'default')));
+        $themeStyle = $this->themeStyle($theme);
         $endpoint = (string)$this->setting('endpoint', '/agent/');
         $csrfName = $this->wire('session')->CSRF->getTokenName();
         $csrfValue = $this->wire('session')->CSRF->getTokenValue();
@@ -432,6 +434,8 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'data-stream' => (bool)$this->setting('streamingEnabled', true) ? '1' : '0',
             'data-local-history' => (bool)$this->setting('localHistoryEnabled', true) ? '1' : '0',
             'data-history-limit' => (string)max(1, (int)$this->setting('localHistoryThreads', 10)),
+            'data-expand-label' => $this->_('Expand conversation'),
+            'data-collapse-label' => $this->_('Compact conversation'),
         ];
         $dataAttrs = '';
         foreach($attrs as $name => $value) {
@@ -439,12 +443,13 @@ class Liora extends WireData implements Module, ConfigurableModule {
         }
 
         return $assets
-            . "<section id='{$id}' class='liora-widget{$compact}'{$dataAttrs}>"
+            . "<section id='{$id}' class='liora-widget{$compact}' style='" . $san->entities($themeStyle) . "'{$dataAttrs}>"
             . "<div class='liora-widget__header'><span class='liora-widget__icon' aria-hidden='true'>✦</span>"
             . "<div><h2>" . $san->entities($heading) . "</h2><p>" . $san->entities($intro) . "</p></div></div>"
             . "<div class='liora-widget__toolbar' data-liora-toolbar hidden>"
             . "<button type='button' data-liora-history-button>" . $this->_('Previous conversations') . "</button>"
-            . "<button type='button' data-liora-new-button>" . $this->_('New conversation') . "</button></div>"
+            . "<button type='button' data-liora-new-button>" . $this->_('New conversation') . "</button>"
+            . "<button type='button' data-liora-expand-button aria-pressed='false'>" . $this->_('Expand conversation') . "</button></div>"
             . "<div class='liora-widget__history' data-liora-history-panel hidden></div>"
             . "<div class='liora-widget__messages' data-liora-messages aria-live='polite'></div>"
             . "<form class='liora-widget__form' data-liora-form>"
@@ -548,6 +553,14 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->label = $this->_('Let visitors restore conversations from this browser');
         $field->description = $this->_('Conversation copies are stored in LocalStorage and loaded only when the visitor chooses one.');
         if((bool)$this->setting('localHistoryEnabled', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldSelect');
+        $field->attr('name', 'widgetTheme');
+        $field->label = $this->_('Widget theme');
+        $field->description = $this->_('Themes are JSON files in Liora/themes. They control safe visual tokens without changing widget behavior.');
+        foreach($this->themeOptions() as $value => $label) $field->addOption($value, $label);
+        $field->attr('value', (string)$this->setting('widgetTheme', 'default'));
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldInteger');
@@ -777,6 +790,49 @@ class Liora extends WireData implements Module, ConfigurableModule {
         if($selection === '' || !str_contains($selection, '|')) return ['', ''];
         [$provider, $model] = explode('|', $selection, 2);
         return [trim($provider), trim($model)];
+    }
+
+    protected function themeOptions(): array {
+        $options = [];
+        foreach(glob(__DIR__ . '/themes/*.json') ?: [] as $file) {
+            $key = pathinfo($file, PATHINFO_FILENAME);
+            if(!preg_match('/^[a-z0-9_-]+$/i', $key)) continue;
+            $data = json_decode((string)file_get_contents($file), true);
+            if(!is_array($data)) continue;
+            $options[$key] = trim((string)($data['name'] ?? '')) ?: ucfirst($key);
+        }
+        return $options ?: ['default' => 'Liora default'];
+    }
+
+    protected function themeStyle(string $theme): string {
+        $theme = preg_match('/^[a-z0-9_-]+$/i', $theme) ? $theme : 'default';
+        $path = __DIR__ . '/themes/' . $theme . '.json';
+        if(!is_file($path)) $path = __DIR__ . '/themes/default.json';
+        $data = is_file($path) ? json_decode((string)file_get_contents($path), true) : [];
+        $variables = is_array($data) ? (array)($data['variables'] ?? []) : [];
+        $allowed = [
+            'accent' => '--liora-accent',
+            'accentDark' => '--liora-accent-dark',
+            'surface' => '--liora-surface',
+            'surfaceMuted' => '--liora-surface-muted',
+            'text' => '--liora-text',
+            'textMuted' => '--liora-text-muted',
+            'border' => '--liora-border',
+            'dangerSurface' => '--liora-danger-surface',
+            'dangerBorder' => '--liora-danger-border',
+            'dangerText' => '--liora-danger-text',
+            'radius' => '--liora-radius',
+            'shadow' => '--liora-shadow',
+            'messagesMaxHeight' => '--liora-messages-max-height',
+            'messageMaxWidth' => '--liora-message-max-width',
+        ];
+        $style = [];
+        foreach($allowed as $key => $property) {
+            $value = trim((string)($variables[$key] ?? ''));
+            if($value === '' || preg_match('/[;{}<>]/', $value)) continue;
+            $style[] = $property . ':' . mb_substr($value, 0, 200);
+        }
+        return implode(';', $style);
     }
 
     protected function modelOptions(): array {

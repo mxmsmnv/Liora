@@ -11,6 +11,8 @@ content demand. Squad remains the only credential/provider transport layer.
   follow-up questions into unrelated dashboard rows.
 - Browser history must remain opt-in to restore, stay in LocalStorage, and never
   contain provider credentials or server session identifiers.
+- Keep widget behavior in JavaScript, structural styling in CSS, and
+  repository-owned visual tokens in allowlisted `themes/*.json` files.
 - Keep public output escaped and treat model responses as untrusted text.
 - All admin mutations must use POST and ProcessWire CSRF validation.
 - Preserve tracked questions on uninstall unless the owner explicitly enables

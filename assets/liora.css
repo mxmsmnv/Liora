@@ -1,19 +1,32 @@
 .liora-widget {
     --liora-accent: #e11d48;
     --liora-accent-dark: #be123c;
-    background: #fff;
-    border: 1px solid #e7e5e4;
-    border-radius: 1rem;
-    box-shadow: 0 12px 30px rgba(41, 37, 36, .08);
-    color: #292524;
+    --liora-surface: #fff;
+    --liora-surface-muted: #fafaf9;
+    --liora-text: #292524;
+    --liora-text-muted: #78716c;
+    --liora-border: #e7e5e4;
+    --liora-danger-surface: #fff1f2;
+    --liora-danger-border: #fecdd3;
+    --liora-danger-text: #9f1239;
+    --liora-radius: 1rem;
+    --liora-shadow: 0 12px 30px rgba(41, 37, 36, .08);
+    --liora-messages-max-height: min(64vh, 42rem);
+    --liora-message-max-width: 46rem;
+    background: var(--liora-surface);
+    border: 1px solid var(--liora-border);
+    border-radius: var(--liora-radius);
+    box-shadow: var(--liora-shadow);
+    color: var(--liora-text);
     overflow: hidden;
 }
 .liora-widget__header { display:flex; gap:1rem; padding:1.25rem; background:linear-gradient(135deg,#fff1f2,#fff); }
 .liora-widget__header h2 { margin:0 0 .3rem; font-size:1.25rem; line-height:1.2; }
 .liora-widget__header p { margin:0; color:#57534e; }
 .liora-widget__icon { display:grid; place-items:center; flex:0 0 2.5rem; height:2.5rem; border-radius:999px; background:var(--liora-accent); color:#fff; font-size:1.35rem; }
-.liora-widget__toolbar { display:flex; justify-content:flex-end; gap:.5rem; padding:.65rem 1.25rem; border-top:1px solid #f5f5f4; border-bottom:1px solid #e7e5e4; background:#fff; }
+.liora-widget__toolbar { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:.5rem; padding:.65rem 1.25rem; border-top:1px solid #f5f5f4; border-bottom:1px solid var(--liora-border); background:var(--liora-surface); }
 .liora-widget__toolbar[hidden] { display:none; }
+.liora-widget__toolbar button[hidden] { display:none; }
 .liora-widget__toolbar button, .liora-widget__history-item { border:0; background:transparent; color:#57534e; font:inherit; cursor:pointer; }
 .liora-widget__toolbar button { padding:.35rem .55rem; border-radius:.4rem; font-size:.8rem; }
 .liora-widget__toolbar button:hover { background:#f5f5f4; color:#292524; }
@@ -25,18 +38,20 @@
 .liora-widget__history-item strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .liora-widget__history-item span { flex:none; color:#78716c; font-size:.7rem; }
 .liora-widget__messages:empty { display:none; }
-.liora-widget__messages { max-height:28rem; overflow:auto; padding:1rem 1.25rem 0; background:#fafaf9; }
-.liora-message { max-width:46rem; margin:0 0 1rem; padding:.75rem 1rem; border-radius:.85rem; white-space:pre-wrap; }
+.liora-widget__messages { max-height:var(--liora-messages-max-height); overflow:auto; overscroll-behavior:contain; scroll-behavior:smooth; padding:1rem 1.25rem 0; background:var(--liora-surface-muted); }
+.liora-widget--expanded { overflow:visible; }
+.liora-widget--expanded .liora-widget__messages { max-height:none; overflow:visible; }
+.liora-message { max-width:var(--liora-message-max-width); margin:0 0 1rem; padding:.75rem 1rem; border-radius:.85rem; white-space:pre-wrap; overflow-wrap:anywhere; scroll-margin-top:1rem; }
 .liora-message--user { margin-left:auto; background:var(--liora-accent); color:#fff; }
-.liora-message--assistant { background:#fff; border:1px solid #e7e5e4; }
-.liora-message--error { background:#fff1f2; border:1px solid #fecdd3; color:#9f1239; }
+.liora-message--assistant { background:var(--liora-surface); border:1px solid var(--liora-border); }
+.liora-message--error { background:var(--liora-danger-surface); border:1px solid var(--liora-danger-border); color:var(--liora-danger-text); }
 .liora-widget__form { display:flex; gap:.65rem; padding:1rem 1.25rem .5rem; }
 .liora-widget__form input { min-width:0; flex:1; padding:.8rem 1rem; border:1px solid #d6d3d1; border-radius:.65rem; font:inherit; }
 .liora-widget__form input:focus { outline:2px solid #fecdd3; border-color:var(--liora-accent); }
 .liora-widget__form button { border:0; border-radius:.65rem; padding:.8rem 1.25rem; background:var(--liora-accent); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
 .liora-widget__form button:hover { background:var(--liora-accent-dark); }
 .liora-widget__form button:disabled, .liora-widget__form input:disabled { cursor:wait; opacity:.6; }
-.liora-widget__notes { margin:.25rem 1.25rem 1rem; color:#78716c; font-size:.75rem; }
+.liora-widget__notes { margin:.25rem 1.25rem 1rem; color:var(--liora-text-muted); font-size:.75rem; }
 .liora-widget__notes p { margin:.25rem 0; }
 .liora-widget__privacy { color:#57534e; }
 .liora-widget--compact { box-shadow:none; }
