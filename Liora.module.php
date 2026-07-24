@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.0.0
+ * @version 1.1.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 100,
+            'version' => 110,
             'summary' => 'AI answer CTA with configurable models and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -33,12 +33,14 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
     public function ___install(): void {
         $this->store()->ensureTable();
-        $this->importLegacyHistory();
+        $this->store()->migrateLegacyQueries();
+        if((int)($this->store()->summary()['total'] ?? 0) === 0) $this->importLegacyHistory();
     }
 
     public function ___upgrade($fromVersion, $toVersion): void {
         $this->store()->ensureTable();
-        $this->importLegacyHistory();
+        $this->store()->migrateLegacyQueries();
+        if((int)($this->store()->summary()['total'] ?? 0) === 0) $this->importLegacyHistory();
     }
 
     public function ___uninstall(): void {
@@ -172,6 +174,49 @@ class Liora extends WireData implements Module, ConfigurableModule {
     }
 
     /**
+     * Stream an OpenAI-style message list through Squad.
+     *
+     * The callback receives plain-text deltas. The return value contains the
+     * complete normalized response and usage metadata.
+     */
+    public function streamChat(array $messages, callable $onDelta, array $options = []): array {
+        if(!$this->isConfigured()) return $this->errorResponse('AI service is not configured');
+        [$current, $history, $systemPrompt] = $this->normalizeMessages($messages);
+        if($current === '') return $this->errorResponse('AI messages require a user message');
+        $squad = $this->squad();
+        if(!$squad || !method_exists($squad, 'stream')) {
+            return $this->errorResponse('The configured AI gateway does not support streaming');
+        }
+
+        $model = $this->getModel((string)($options['model'] ?? 'default'));
+        $provider = trim((string)($options['squad_provider'] ?? $options['provider'] ?? $this->getProvider()));
+        $result = (array)$squad->stream($current, $onDelta, [
+            'provider' => $provider,
+            'model' => $model,
+            'systemPrompt' => $systemPrompt,
+            'history' => $history,
+            'maxTokens' => max(1, min(200000, (int)($options['max_tokens'] ?? $options['maxTokens'] ?? $this->setting('maxTokens', 1200)))),
+            'temperature' => max(0.0, min(2.0, (float)($options['temperature'] ?? $this->setting('temperature', 0.4)))),
+            'timeout' => max(5, min(300, (int)($options['timeout'] ?? $this->setting('timeout', 60)))),
+        ]);
+        if(empty($result['success'])) {
+            return $this->errorResponse($this->safeSquadError((string)($result['message'] ?? '')));
+        }
+        return [
+            'success' => true,
+            'status' => 200,
+            'error' => '',
+            'content' => (string)($result['content'] ?? ''),
+            'data' => [
+                'provider' => (string)($result['provider'] ?? $provider),
+                'model' => (string)($result['model'] ?? $model),
+                'usage' => (array)($result['usage'] ?? []),
+                'cached' => false,
+            ],
+        ];
+    }
+
+    /**
      * Serve the JSON endpoint used by the Liora widget.
      */
     public function handleEndpoint(): void {
@@ -200,70 +245,132 @@ class Liora extends WireData implements Module, ConfigurableModule {
         ]));
         $originalQuery = trim($san->text((string)($input['originalQuery'] ?? ''), ['maxLength' => 500]));
         $context = trim($san->text((string)($input['context'] ?? 'site'), ['maxLength' => 255]));
-        $sourceUrl = $this->sanitizeSourceUrl((string)($input['sourceUrl'] ?? ''));
-        $pageId = max(0, (int)($input['pageId'] ?? 0));
+        if($question === '') $this->sendJson(['success' => false, 'error' => 'Please enter a question.'], 400);
 
-        if($question === '') {
-            $this->sendJson(['success' => false, 'error' => 'Please enter a question.'], 400);
-        }
-        if(!$this->isConfigured()) {
-            $this->trackRequest($question, '', [
-                'originalQuery' => $originalQuery,
+        $pageContext = $this->resolvePageContext(
+            (string)($input['sourceUrl'] ?? ''),
+            (string)($_SERVER['HTTP_REFERER'] ?? ''),
+            (string)($input['referrerUrl'] ?? '')
+        );
+        $sessionHash = $this->sessionHash();
+        $userId = (int)($this->wire('user')->id ?? 0);
+        $requestedThreadId = (string)($input['threadId'] ?? '');
+        $thread = $this->store()->findOwnedThread($requestedThreadId, $sessionHash, $userId);
+        $newThread = !$thread;
+
+        if($newThread) {
+            $geo = $this->geoData();
+            $thread = $this->store()->createThread([
+                'public_id' => $requestedThreadId,
+                'title' => $originalQuery !== '' ? $originalQuery : mb_substr($question, 0, 120),
+                'original_query' => $originalQuery,
                 'context' => $context,
-                'sourceUrl' => $sourceUrl,
-                'pageId' => $pageId,
-                'error' => 'AI service is not configured',
+                'source_url' => $pageContext['source_url'],
+                'referrer_url' => $pageContext['referrer_url'],
+                'page_id' => $pageContext['page_id'],
+                'page_title' => $pageContext['page_title'],
+                'user_id' => $userId,
+                'session_hash' => $sessionHash,
+                'country_code' => $geo['country_code'],
+                'country' => $geo['country'],
+                'region' => $geo['region'],
+                'city' => $geo['city'],
             ]);
-            $this->sendJson(['success' => false, 'error' => 'AI service is not configured'], 503);
+            $this->importClientHistory((int)$thread['id'], (array)($input['history'] ?? []), $pageContext);
         }
 
-        $history = $this->sessionHistory();
+        $historyRows = $this->store()->messages(
+            (int)$thread['id'],
+            max(2, (int)$this->setting('historyMessages', 10))
+        );
+        $history = [];
+        foreach($historyRows as $message) {
+            if(!in_array($message['role'], ['user', 'assistant'], true)) continue;
+            $history[] = ['role' => $message['role'], 'content' => (string)$message['content']];
+        }
+        $this->store()->addMessage((int)$thread['id'], 'user', $question, [
+            'source_url' => $pageContext['source_url'],
+            'page_id' => $pageContext['page_id'],
+        ]);
+
         $systemPrompt = trim((string)$this->setting('systemPrompt', $this->defaultSystemPrompt()));
         if($originalQuery !== '') {
             $systemPrompt .= "\n\nThe visitor originally searched for: \"{$originalQuery}\". The site did not give them a sufficient answer.";
         }
-        if($sourceUrl !== '') {
-            $systemPrompt .= "\nThe visitor is asking from this site path: {$sourceUrl}.";
+        if($pageContext['source_url'] !== '') {
+            $systemPrompt .= "\nThe visitor is asking from this site path: {$pageContext['source_url']}.";
         }
 
         $messages = [['role' => 'system', 'content' => $systemPrompt]];
         foreach($history as $message) $messages[] = $message;
         $messages[] = ['role' => 'user', 'content' => $question];
 
-        $result = $this->chat($messages, ['pageId' => $pageId]);
+        if(!$this->isConfigured()) {
+            $error = 'AI service is not configured';
+            $this->store()->addMessage((int)$thread['id'], 'error', $error, ['error' => $error]);
+            $this->store()->updateStatus((int)$thread['id'], 'failed');
+            $this->sendJson(['success' => false, 'error' => $error, 'thread_id' => $thread['public_id']], 503);
+        }
+
+        $stream = !empty($input['stream']) && (bool)$this->setting('streamingEnabled', true);
+        if($stream) {
+            $this->handleStreamResponse($thread, $messages, $pageContext);
+        }
+
+        $result = $this->chat($messages, ['pageId' => $pageContext['page_id']]);
         if(empty($result['success'])) {
-            $this->trackRequest($question, '', [
-                'originalQuery' => $originalQuery,
-                'context' => $context,
-                'sourceUrl' => $sourceUrl,
-                'pageId' => $pageId,
-                'error' => (string)($result['error'] ?? 'AI request failed'),
-            ]);
-            $this->sendJson(['success' => false, 'error' => $result['error'] ?? 'AI request failed'], 502);
+            $error = (string)($result['error'] ?? 'AI request failed');
+            $this->store()->addMessage((int)$thread['id'], 'error', $error, ['error' => $error]);
+            $this->store()->updateStatus((int)$thread['id'], 'failed');
+            $this->sendJson(['success' => false, 'error' => $error, 'thread_id' => $thread['public_id']], 502);
         }
 
         $answer = (string)$result['content'];
-        $this->appendSessionHistory($question, $answer);
         $data = (array)($result['data'] ?? []);
-        $this->trackRequest($question, $answer, [
-            'originalQuery' => $originalQuery,
-            'context' => $context,
-            'sourceUrl' => $sourceUrl,
-            'pageId' => $pageId,
-            'provider' => (string)($data['provider'] ?? $this->getProvider()),
-            'model' => (string)($data['model'] ?? $this->getModel()),
-            'usage' => (array)($data['usage'] ?? []),
-            'cached' => !empty($data['cached']),
-        ]);
+        $this->storeAssistantMessage((int)$thread['id'], $answer, $data, $pageContext);
 
         $this->sendJson([
             'success' => true,
             'response' => $answer,
+            'thread_id' => $thread['public_id'],
             'model' => (string)($data['model'] ?? $this->getModel()),
             'tokens_used' => (int)($data['usage']['total_tokens'] ?? 0),
             'cached' => !empty($data['cached']),
             'format' => 'markdown',
         ]);
+    }
+
+    protected function handleStreamResponse(array $thread, array $messages, array $pageContext): void {
+        header_remove('Content-Type');
+        header('Content-Type: application/x-ndjson; charset=utf-8');
+        header('Cache-Control: no-cache, no-store');
+        header('X-Accel-Buffering: no');
+        header('Content-Encoding: none');
+        ignore_user_abort(true);
+        while(ob_get_level() > 0) @ob_end_flush();
+
+        $this->sendStreamEvent('thread', ['thread_id' => $thread['public_id']]);
+        $result = $this->streamChat($messages, function(string $delta): void {
+            $this->sendStreamEvent('delta', ['content' => $delta]);
+        }, ['pageId' => $pageContext['page_id']]);
+
+        if(empty($result['success'])) {
+            $error = (string)($result['error'] ?? 'AI request failed');
+            $this->store()->addMessage((int)$thread['id'], 'error', $error, ['error' => $error]);
+            $this->store()->updateStatus((int)$thread['id'], 'failed');
+            $this->sendStreamEvent('error', ['error' => $error]);
+            exit;
+        }
+
+        $answer = (string)$result['content'];
+        $data = (array)($result['data'] ?? []);
+        $this->storeAssistantMessage((int)$thread['id'], $answer, $data, $pageContext);
+        $this->sendStreamEvent('done', [
+            'thread_id' => $thread['public_id'],
+            'model' => (string)($data['model'] ?? $this->getModel()),
+            'tokens_used' => (int)($data['usage']['total_tokens'] ?? 0),
+        ]);
+        exit;
     }
 
     /**
@@ -295,6 +402,10 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'widgetPlaceholder',
             'Ask about products, pairings, brands or cocktails…'
         ));
+        $privacyNotice = trim((string)$this->setting(
+            'privacyNotice',
+            'Your questions help us improve LQRS and may be reviewed for quality. Please do not include personal details.'
+        ));
         $endpoint = (string)$this->setting('endpoint', '/agent/');
         $csrfName = $this->wire('session')->CSRF->getTokenName();
         $csrfValue = $this->wire('session')->CSRF->getTokenValue();
@@ -318,6 +429,9 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'data-page-id' => (string)$pageId,
             'data-csrf-name' => $csrfName,
             'data-csrf-value' => $csrfValue,
+            'data-stream' => (bool)$this->setting('streamingEnabled', true) ? '1' : '0',
+            'data-local-history' => (bool)$this->setting('localHistoryEnabled', true) ? '1' : '0',
+            'data-history-limit' => (string)max(1, (int)$this->setting('localHistoryThreads', 10)),
         ];
         $dataAttrs = '';
         foreach($attrs as $name => $value) {
@@ -328,6 +442,10 @@ class Liora extends WireData implements Module, ConfigurableModule {
             . "<section id='{$id}' class='liora-widget{$compact}'{$dataAttrs}>"
             . "<div class='liora-widget__header'><span class='liora-widget__icon' aria-hidden='true'>✦</span>"
             . "<div><h2>" . $san->entities($heading) . "</h2><p>" . $san->entities($intro) . "</p></div></div>"
+            . "<div class='liora-widget__toolbar' data-liora-toolbar hidden>"
+            . "<button type='button' data-liora-history-button>" . $this->_('Previous conversations') . "</button>"
+            . "<button type='button' data-liora-new-button>" . $this->_('New conversation') . "</button></div>"
+            . "<div class='liora-widget__history' data-liora-history-panel hidden></div>"
             . "<div class='liora-widget__messages' data-liora-messages aria-live='polite'></div>"
             . "<form class='liora-widget__form' data-liora-form>"
             . "<label class='liora-sr-only' for='{$id}-question'>" . $this->_('Ask Liora') . "</label>"
@@ -335,7 +453,14 @@ class Liora extends WireData implements Module, ConfigurableModule {
             . (int)$this->setting('maxQuestionLength', 1000) . "' autocomplete='off' placeholder='"
             . $san->entities($placeholder) . "' required>"
             . "<button type='submit' data-liora-submit>" . $this->_('Ask') . "</button>"
-            . "</form><p class='liora-widget__note'>" . $this->_('AI can make mistakes. Please verify important information.') . "</p>"
+            . "</form><div class='liora-widget__notes'><p>" . $this->_('AI can make mistakes. Please verify important information.') . '</p>'
+            . ((bool)$this->setting('showPrivacyNotice', true) && $privacyNotice !== ''
+                ? "<p class='liora-widget__privacy'>" . $san->entities($privacyNotice) . '</p>'
+                : '')
+            . ((bool)$this->setting('localHistoryEnabled', true)
+                ? "<p>" . $this->_('Conversation history stays in this browser so you can return to it later.') . '</p>'
+                : '')
+            . '</div>'
             . "</section>";
     }
 
@@ -399,6 +524,13 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->attr('min', 0);
         $field->columnWidth = 25;
         $fieldset->add($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'streamingEnabled');
+        $field->label = $this->_('Stream answers as they are generated');
+        $field->description = $this->_('Uses Squad streaming and sends real provider deltas to the browser.');
+        if((bool)$this->setting('streamingEnabled', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
         $inputfields->add($fieldset);
 
         $fieldset = $modules->get('InputfieldFieldset');
@@ -409,6 +541,21 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->attr('name', 'widgetEnabled');
         $field->label = $this->_('Enable the Liora widget');
         if((bool)$this->setting('widgetEnabled', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'localHistoryEnabled');
+        $field->label = $this->_('Let visitors restore conversations from this browser');
+        $field->description = $this->_('Conversation copies are stored in LocalStorage and loaded only when the visitor chooses one.');
+        if((bool)$this->setting('localHistoryEnabled', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldInteger');
+        $field->attr('name', 'localHistoryThreads');
+        $field->label = $this->_('Conversations kept in this browser');
+        $field->attr('value', (int)$this->setting('localHistoryThreads', 10));
+        $field->attr('min', 1);
+        $field->attr('max', 50);
         $fieldset->add($field);
 
         foreach([
@@ -442,7 +589,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
         foreach([
             'maxQuestionLength' => [$this->_('Maximum question length'), 1000, 100, 5000],
             'requestsPerHour' => [$this->_('Questions per session per hour'), 20, 1, 200],
-            'historyMessages' => [$this->_('Conversation messages retained in session'), 10, 0, 40],
+            'historyMessages' => [$this->_('Conversation messages sent as AI context'), 10, 2, 40],
         ] as $name => [$label, $default, $min, $max]) {
             $field = $modules->get('InputfieldInteger');
             $field->attr('name', $name);
@@ -453,6 +600,23 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $field->columnWidth = 33;
             $fieldset->add($field);
         }
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'showPrivacyNotice');
+        $field->label = $this->_('Show the quality and privacy notice');
+        if((bool)$this->setting('showPrivacyNotice', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldTextarea');
+        $field->attr('name', 'privacyNotice');
+        $field->label = $this->_('Conversation quality notice');
+        $field->description = $this->_('Keep this friendly and transparent. It appears below the question form.');
+        $field->attr('rows', 3);
+        $field->attr('value', (string)$this->setting(
+            'privacyNotice',
+            'Your questions help us improve LQRS and may be reviewed for quality. Please do not include personal details.'
+        ));
+        $fieldset->add($field);
 
         $field = $modules->get('InputfieldCheckbox');
         $field->attr('name', 'deleteDataOnUninstall');
@@ -478,53 +642,30 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $question = trim((string)$row->get('query'));
             $response = trim((string)$row->get('response'));
             if($question === '') continue;
-            $hash = hash('sha256', 'legacy|' . $original . '|' . $question . '|' . $response);
-            if($this->store()->add([
-                'request_hash' => $hash,
+            $publicId = substr(hash('sha256', 'legacy-field|' . $original . '|' . $question . '|' . $response), 0, 32);
+            $thread = $this->store()->threadByPublicId($publicId);
+            if($thread) continue;
+            $thread = $this->store()->createThread([
+                'public_id' => $publicId,
+                'title' => $original !== '' ? $original : mb_substr($question, 0, 120),
                 'original_query' => $original,
-                'question' => $question,
-                'response' => $response,
                 'context' => 'legacy-field-ai',
                 'source_url' => '/agent/',
                 'page_id' => (int)$page->id,
-                'status' => 'new',
-            ])) $count++;
+            ]);
+            $this->store()->addMessage((int)$thread['id'], 'user', $question, [
+                'source_url' => '/agent/',
+                'page_id' => (int)$page->id,
+            ]);
+            if($response !== '') {
+                $this->store()->addMessage((int)$thread['id'], 'assistant', $response, [
+                    'source_url' => '/agent/',
+                    'page_id' => (int)$page->id,
+                ]);
+            }
+            $count++;
         }
         return $count;
-    }
-
-    protected function trackRequest(string $question, string $response, array $meta): void {
-        try {
-            $usage = (array)($meta['usage'] ?? []);
-            $sessionHash = $this->sessionHash();
-            $requestHash = hash('sha256', implode('|', [
-                $sessionHash,
-                $question,
-                (string)microtime(true),
-                bin2hex(random_bytes(4)),
-            ]));
-            $this->store()->add([
-                'request_hash' => $requestHash,
-                'original_query' => (string)($meta['originalQuery'] ?? ''),
-                'question' => $question,
-                'response' => $response,
-                'provider' => (string)($meta['provider'] ?? ''),
-                'model' => (string)($meta['model'] ?? ''),
-                'context' => (string)($meta['context'] ?? ''),
-                'source_url' => (string)($meta['sourceUrl'] ?? ''),
-                'page_id' => (int)($meta['pageId'] ?? 0),
-                'user_id' => (int)($this->wire('user')->id ?? 0),
-                'session_hash' => $sessionHash,
-                'tokens_input' => (int)($usage['prompt_tokens'] ?? $usage['input_tokens'] ?? 0),
-                'tokens_output' => (int)($usage['completion_tokens'] ?? $usage['output_tokens'] ?? 0),
-                'tokens_total' => (int)($usage['total_tokens'] ?? 0),
-                'cached' => !empty($meta['cached']) ? 1 : 0,
-                'status' => !empty($meta['error']) ? 'failed' : 'new',
-                'error' => (string)($meta['error'] ?? ''),
-            ]);
-        } catch(\Throwable $e) {
-            $this->wire('log')->save('liora', 'Could not track question: ' . $e->getMessage());
-        }
     }
 
     protected function sessionHash(): string {
@@ -548,18 +689,87 @@ class Liora extends WireData implements Module, ConfigurableModule {
         return true;
     }
 
-    protected function sessionHistory(): array {
-        $history = $this->wire('session')->get('liora_chat_history');
-        return is_array($history) ? $history : [];
+    protected function storeAssistantMessage(int $threadId, string $answer, array $data, array $pageContext): void {
+        $usage = (array)($data['usage'] ?? []);
+        $this->store()->addMessage($threadId, 'assistant', $answer, [
+            'provider' => (string)($data['provider'] ?? $this->getProvider()),
+            'model' => (string)($data['model'] ?? $this->getModel()),
+            'source_url' => (string)$pageContext['source_url'],
+            'page_id' => (int)$pageContext['page_id'],
+            'tokens_input' => (int)($usage['prompt_tokens'] ?? $usage['input_tokens'] ?? 0),
+            'tokens_output' => (int)($usage['completion_tokens'] ?? $usage['output_tokens'] ?? 0),
+            'tokens_total' => (int)($usage['total_tokens'] ?? 0),
+            'cached' => !empty($data['cached']),
+        ]);
     }
 
-    protected function appendSessionHistory(string $question, string $answer): void {
-        $limit = max(0, (int)$this->setting('historyMessages', 10));
-        if($limit === 0) return;
-        $history = $this->sessionHistory();
-        $history[] = ['role' => 'user', 'content' => $question];
-        $history[] = ['role' => 'assistant', 'content' => $answer];
-        $this->wire('session')->set('liora_chat_history', array_slice($history, -$limit));
+    protected function importClientHistory(int $threadId, array $history, array $pageContext): void {
+        $san = $this->wire('sanitizer');
+        $limit = max(2, min(40, (int)$this->setting('historyMessages', 10)));
+        foreach(array_slice($history, -$limit) as $message) {
+            if(!is_array($message)) continue;
+            $role = ($message['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $content = trim($san->textarea((string)($message['content'] ?? ''), ['maxLength' => 5000]));
+            if($content === '') continue;
+            $this->store()->addMessage($threadId, $role, $content, [
+                'source_url' => (string)$pageContext['source_url'],
+                'page_id' => (int)$pageContext['page_id'],
+            ]);
+        }
+    }
+
+    protected function resolvePageContext(
+        string $clientSource,
+        string $httpReferer,
+        string $browserReferrer = ''
+    ): array {
+        $source = $this->sanitizeSourceUrl($clientSource)
+            ?: $this->sanitizeSourceUrl($httpReferer);
+        $pageId = 0;
+        $pageTitle = '';
+        if($source !== '') {
+            $path = (string)(parse_url($source, PHP_URL_PATH) ?: '/');
+            $page = $this->wire('pages')->get($path);
+            if($page && $page->id && $page->template && $page->template->name !== 'admin') {
+                $pageId = (int)$page->id;
+                $pageTitle = (string)$page->title;
+                $source = (string)$page->url;
+            }
+        }
+        return [
+            'source_url' => $source,
+            'referrer_url' => $this->sanitizeReferrerUrl($browserReferrer),
+            'page_id' => $pageId,
+            'page_title' => $pageTitle,
+        ];
+    }
+
+    protected function geoData(): array {
+        $empty = ['country_code' => '', 'country' => '', 'region' => '', 'city' => ''];
+        try {
+            $modules = $this->wire('modules');
+            if(!$modules->isInstalled('GeoIP')) return $empty;
+            $geoip = $modules->get('GeoIP');
+            if(!$geoip || !method_exists($geoip, 'detect')) return $empty;
+            $geo = (array)$geoip->detect();
+            return [
+                'country_code' => strtoupper(mb_substr((string)($geo['countryCode'] ?? ''), 0, 2)),
+                'country' => mb_substr((string)($geo['country'] ?? ''), 0, 128),
+                'region' => mb_substr((string)($geo['region'] ?? ''), 0, 128),
+                'city' => mb_substr((string)($geo['city'] ?? ''), 0, 128),
+            ];
+        } catch(\Throwable $e) {
+            $this->wire('log')->save('liora', 'GeoIP lookup failed: ' . $e->getMessage());
+            return $empty;
+        }
+    }
+
+    protected function sendStreamEvent(string $type, array $data = []): void {
+        echo json_encode(
+            ['type' => $type] + $data,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        ) . "\n";
+        flush();
     }
 
     protected function configuredProviderModel(): array {
@@ -651,6 +861,18 @@ class Liora extends WireData implements Module, ConfigurableModule {
         }
         $path = (string)($parts['path'] ?? '/');
         return str_starts_with($path, '/') ? mb_substr($path, 0, 2048) : '';
+    }
+
+    protected function sanitizeReferrerUrl(string $url): string {
+        $url = trim($url);
+        if($url === '') return '';
+        $parts = parse_url($url);
+        if($parts === false || empty($parts['host'])) return '';
+        $scheme = strtolower((string)($parts['scheme'] ?? 'https'));
+        if(!in_array($scheme, ['http', 'https'], true)) return '';
+        $host = strtolower((string)$parts['host']);
+        $path = (string)($parts['path'] ?? '/');
+        return mb_substr($scheme . '://' . $host . (str_starts_with($path, '/') ? $path : '/' . $path), 0, 2048);
     }
 
     protected function setting(string $name, $default) {

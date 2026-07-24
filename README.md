@@ -9,7 +9,12 @@ Squad owns provider credentials and transport. Liora adds:
 - a reusable `InputfieldLiora` and frontend widget;
 - selectable active provider/model settings;
 - configurable prompt, token, timeout, cache, rate-limit and CTA settings;
-- privacy-conscious question tracking without raw IP addresses;
+- conversation threads with chronological visitor and Liora messages;
+- optional real-time streamed answers through Squad;
+- browser-only conversation history that visitors explicitly restore;
+- privacy-conscious demand tracking without raw IP addresses;
+- optional country and city enrichment when the GeoIP module is installed;
+- an editable, friendly quality-review notice below the widget;
 - a **Setup → Liora Insights** review dashboard;
 - import of the legacy `ai` ProFields Table history.
 
@@ -39,3 +44,18 @@ $text = $liora->complete('Explain the difference between Cognac and Armagnac.');
 ```
 
 Never store provider credentials in Liora. Configure them in Squad.
+
+## Conversation model
+
+The server stores one row per conversation in `liora_threads` and chronological
+messages in `liora_messages`. The public thread ID is accepted only for the
+current hashed ProcessWire session (or authenticated user), so a LocalStorage
+copy can safely seed a new server-side conversation after a session expires.
+
+Local history is not loaded into the widget automatically. The visitor uses
+**Previous conversations** to choose a browser-stored thread. It can be disabled
+and its retention limit can be configured in the Liora module settings.
+
+When Squad supports the selected provider, Liora sends newline-delimited JSON
+and renders provider deltas as they arrive. Disabling streaming keeps the
+regular JSON response flow.

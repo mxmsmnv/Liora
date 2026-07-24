@@ -1,0 +1,58 @@
+.liora-admin-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.liora-admin-summary strong { font-size: 1.55rem; }
+.liora-admin-recent { margin-top: 28px; }
+.liora-admin-thread__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.liora-admin-messages { margin: 1rem 0; }
+.liora-admin-message {
+    margin: .75rem 0;
+    padding: .85rem 1rem;
+    border-radius: 6px;
+    background: #f6f7f8;
+    border-left: 4px solid #9ca3af;
+}
+.liora-admin-message--assistant {
+    border-left-color: #e11d48;
+    background: #fff7f8;
+}
+.liora-admin-message--assistant pre {
+    margin: .5rem 0 0;
+    padding: 1rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: #24292f;
+    color: #f6f8fa;
+    border-radius: 5px;
+}
+.liora-admin-message--assistant code {
+    color: inherit;
+    background: transparent;
+    font: inherit;
+}
+.liora-admin-message--error {
+    border-left-color: #dc2626;
+    background: #fef2f2;
+}
+.liora-admin-message__meta {
+    color: #6b7280;
+    font-size: .78rem;
+    font-weight: 600;
+}
+.liora-admin-message__content {
+    margin-top: .45rem;
+    white-space: pre-wrap;
+}
+.liora-admin-status { gap: 8px; }
+@media (max-width: 640px) {
+    .liora-admin-thread__header { align-items: flex-start; flex-direction: column; }
+}

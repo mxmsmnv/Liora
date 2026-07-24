@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 - 2026-07-23
+
+- Replaced flat request records with conversation threads and chronological messages.
+- Migrated existing `liora_queries` rows into the new thread/message model.
+- Added correct same-site source page resolution and separate browser referrer tracking.
+- Added optional country and city enrichment through an installed GeoIP module.
+- Added visitor-controlled LocalStorage history with previous/new conversation controls.
+- Added configurable quality-review disclosure text.
+- Added true streamed answer rendering through Squad provider deltas.
+- Grouped each conversation in Liora Insights and highlighted Liora answers as quoted code.
+
 ## 1.0.0 - 2026-07-23
 
 - Renamed the LQRS AI facade from LqrsAi to Liora.

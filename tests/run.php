@@ -7,6 +7,7 @@ $required = [
     'InputfieldLiora.module.php',
     'ProcessLiora.module.php',
     'assets/liora.css',
+    'assets/liora-admin.css',
     'assets/liora.js',
 ];
 
@@ -21,6 +22,7 @@ $module = file_get_contents($root . '/Liora.module.php');
 $store = file_get_contents($root . '/LioraStore.php');
 $inputfield = file_get_contents($root . '/InputfieldLiora.module.php');
 $process = file_get_contents($root . '/ProcessLiora.module.php');
+$javascript = file_get_contents($root . '/assets/liora.js');
 
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
@@ -28,9 +30,14 @@ $checks = [
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
-    'privacy table' => str_contains($store, '`session_hash`') && !str_contains($store, '`ip_address`'),
+    'thread storage' => str_contains($store, 'liora_threads') && str_contains($store, 'liora_messages'),
+    'privacy storage' => str_contains($store, '`session_hash`') && !str_contains($store, '`ip_address`'),
+    'GeoIP enrichment' => str_contains($module, "isInstalled('GeoIP')") && !str_contains($store, '`ip_address`'),
+    'streaming endpoint' => str_contains($module, 'application/x-ndjson') && str_contains($module, 'streamChat('),
+    'local conversation history' => str_contains($javascript, 'localStorage') && str_contains($javascript, 'Previous conversations'),
     'Inputfield class' => str_contains($inputfield, 'class InputfieldLiora extends Inputfield'),
     'Process class' => str_contains($process, 'class ProcessLiora extends Process'),
+    'admin thread rendering' => str_contains($process, 'recentThreads') && str_contains($process, '<blockquote'),
     'CSRF validation' => str_contains($process, 'CSRF->validate()'),
 ];
 

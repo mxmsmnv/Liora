@@ -7,6 +7,10 @@ content demand. Squad remains the only credential/provider transport layer.
 
 - Never store API keys or plaintext session identifiers.
 - Do not record raw IP addresses or user agents.
+- Treat a conversation as one thread with chronological messages; never flatten
+  follow-up questions into unrelated dashboard rows.
+- Browser history must remain opt-in to restore, stay in LocalStorage, and never
+  contain provider credentials or server session identifiers.
 - Keep public output escaped and treat model responses as untrusted text.
 - All admin mutations must use POST and ProcessWire CSRF validation.
 - Preserve tracked questions on uninstall unless the owner explicitly enables

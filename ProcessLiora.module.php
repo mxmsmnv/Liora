@@ -1,28 +1,34 @@
 <?php namespace ProcessWire;
 
 /**
- * ProcessLiora — demand dashboard for questions the site did not answer.
+ * ProcessLiora — conversation and demand dashboard.
  */
 class ProcessLiora extends Process {
 
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 100,
-            'summary' => 'Review AI questions and turn visitor demand into site content.',
+            'version' => 110,
+            'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',
             'requires' => ['Liora'],
             'permission' => 'liora-review',
-            'permissions' => ['liora-review' => 'Review Liora visitor questions'],
+            'permissions' => ['liora-review' => 'Review Liora visitor conversations'],
             'page' => ['name' => 'liora', 'parent' => 'setup', 'title' => 'Liora Insights'],
         ];
+    }
+
+    public function init(): void {
+        parent::init();
+        $url = $this->wire('config')->urls->siteModules . 'Liora/assets/liora-admin.css?v=110';
+        $this->wire('config')->styles->add($url);
     }
 
     public function execute(): string {
         $user = $this->wire('user');
         if(!$user->isSuperuser() && !$user->hasPermission('liora-review')) {
-            throw new WirePermissionException($this->_('You do not have permission to review Liora questions.'));
+            throw new WirePermissionException($this->_('You do not have permission to review Liora conversations.'));
         }
 
         $liora = $this->wire('modules')->get('Liora');
@@ -35,15 +41,15 @@ class ProcessLiora extends Process {
             $session->CSRF->validate();
             $id = (int)$input->post('id');
             $status = $san->pageName((string)$input->post('status'));
-            if($store->updateStatus($id, $status)) $this->message($this->_('Question status updated.'));
-            else $this->error($this->_('Could not update the question.'));
+            if($store->updateStatus($id, $status)) $this->message($this->_('Conversation status updated.'));
+            else $this->error($this->_('Could not update the conversation.'));
             $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
         }
 
         $status = $san->pageName((string)$input->get('status'));
         if(!in_array($status, LioraStore::statuses(), true)) $status = '';
         $summary = $store->summary();
-        $rows = $store->recent(100, $status);
+        $threads = $store->recentThreads(100, $status);
         $top = $store->topDemand(20);
 
         $this->headline($this->_('Liora Insights'));
@@ -53,21 +59,23 @@ class ProcessLiora extends Process {
             . $this->renderSummary($summary, $liora)
             . $this->renderTopDemand($top)
             . $this->renderFilters($status)
-            . $this->renderRows($rows)
+            . $this->renderThreads($threads)
             . '</div>';
     }
 
     protected function renderSummary(array $summary, Liora $liora): string {
         $cards = [
-            $this->_('All questions') => (int)($summary['total'] ?? 0),
+            $this->_('Conversations') => (int)($summary['total'] ?? 0),
+            $this->_('Messages') => (int)($summary['messages'] ?? 0),
+            $this->_('Questions') => (int)($summary['questions'] ?? 0),
             $this->_('Needs review') => (int)($summary['new_count'] ?? 0),
             $this->_('Today') => (int)($summary['today'] ?? 0),
             $this->_('Failed') => (int)($summary['failed'] ?? 0),
             $this->_('Tokens') => number_format((int)($summary['tokens'] ?? 0)),
         ];
-        $out = "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px'>";
+        $out = "<div class='liora-admin-summary'>";
         foreach($cards as $label => $value) {
-            $out .= "<div class='uk-card uk-card-default uk-card-body uk-padding-small'><div class='uk-text-meta'>{$label}</div><strong style='font-size:1.6rem'>{$value}</strong></div>";
+            $out .= "<div class='uk-card uk-card-default uk-card-body uk-padding-small'><div class='uk-text-meta'>{$label}</div><strong>{$value}</strong></div>";
         }
         $settings = $this->wire('config')->urls->admin . 'module/edit?name=Liora';
         return $out . "</div><p><strong>" . $this->_('Active model:') . '</strong> '
@@ -79,11 +87,17 @@ class ProcessLiora extends Process {
         if(!$rows) return '';
         $table = $this->wire('modules')->get('MarkupAdminDataTable');
         $table->setEncodeEntities(true);
-        $table->headerRow([$this->_('Search/context query'), $this->_('Questions'), $this->_('Last seen')]);
+        $table->headerRow([
+            $this->_('Search/context query'),
+            $this->_('Conversations'),
+            $this->_('Messages'),
+            $this->_('Last seen'),
+        ]);
         foreach($rows as $row) {
             $table->row([
                 (string)$row['original_query'],
-                (int)$row['hits'],
+                (int)$row['threads'],
+                (int)$row['messages'],
                 (string)$row['last_seen'],
             ]);
         }
@@ -98,7 +112,7 @@ class ProcessLiora extends Process {
             $this->_('Dismissed'),
             $this->_('Failed'),
         ]);
-        $out = "<h2 style='margin-top:28px'>" . $this->_('Recent questions') . "</h2><ul class='uk-subnav uk-subnav-pill'>";
+        $out = "<h2 class='liora-admin-recent'>" . $this->_('Recent conversations') . "</h2><ul class='uk-subnav uk-subnav-pill'>";
         foreach($items as $value => $label) {
             $class = $value === $active ? " class='uk-active'" : '';
             $href = $value === '' ? './' : './?status=' . urlencode($value);
@@ -107,36 +121,78 @@ class ProcessLiora extends Process {
         return $out . '</ul>';
     }
 
-    protected function renderRows(array $rows): string {
-        if(!$rows) return '<p>' . $this->_('No questions match this filter.') . '</p>';
+    protected function renderThreads(array $threads): string {
+        if(!$threads) return '<p>' . $this->_('No conversations match this filter.') . '</p>';
         $san = $this->wire('sanitizer');
         $csrf = $this->wire('session')->CSRF->renderInput();
         $out = '';
-        foreach($rows as $row) {
-            $question = nl2br($san->entities((string)$row['question']));
-            $response = nl2br($san->entities((string)$row['response']));
-            $original = $san->entities((string)$row['original_query']);
-            $source = $san->entities((string)$row['source_url']);
-            $meta = $san->entities(trim((string)$row['provider'] . ' / ' . (string)$row['model'], ' /'));
-            $error = trim((string)$row['error']);
-            $out .= "<article class='uk-card uk-card-default uk-card-body uk-margin-small'>"
-                . "<div class='uk-flex uk-flex-between uk-flex-middle'><div><span class='uk-label'>"
-                . $san->entities((string)$row['status']) . "</span> <span class='uk-text-meta'>"
-                . $san->entities((string)$row['created_at']) . "</span></div><span class='uk-text-meta'>{$meta}</span></div>"
+        foreach($threads as $thread) {
+            $title = $san->entities((string)($thread['title'] ?: $this->_('Untitled conversation')));
+            $original = $san->entities((string)$thread['original_query']);
+            $location = implode(', ', array_filter([
+                trim((string)$thread['city']),
+                trim((string)$thread['country']),
+            ]));
+            $source = trim((string)$thread['source_url']);
+            $referrer = trim((string)$thread['referrer_url']);
+            $pageTitle = $san->entities((string)$thread['page_title']);
+
+            $out .= "<article class='uk-card uk-card-default uk-card-body uk-margin liora-admin-thread'>"
+                . "<header class='liora-admin-thread__header'><div><span class='uk-label'>"
+                . $san->entities((string)$thread['status']) . "</span> <span class='uk-text-meta'>"
+                . $san->entities((string)$thread['updated_at']) . "</span></div>"
+                . "<div class='uk-text-meta'>" . (int)$thread['message_count'] . ' ' . $this->_('messages')
+                . ($location !== '' ? ' · ' . $san->entities($location) : '') . '</div></header>'
+                . "<h3>{$title}</h3>"
                 . ($original !== '' ? "<p><strong>" . $this->_('Original search:') . "</strong> {$original}</p>" : '')
-                . "<h3>{$question}</h3>"
-                . ($response !== '' ? "<details><summary>" . $this->_('Liora response') . "</summary><p>{$response}</p></details>" : '')
-                . ($error !== '' ? "<p class='uk-text-danger'>" . $san->entities($error) . '</p>' : '')
-                . ($source !== '' ? "<p class='uk-text-meta'>" . $this->_('Source:') . " <a href='{$source}' target='_blank' rel='noopener'>{$source}</a></p>" : '')
-                . "<form method='post' class='uk-flex uk-flex-middle' style='gap:8px'>{$csrf}"
-                . "<input type='hidden' name='action' value='status'><input type='hidden' name='id' value='" . (int)$row['id'] . "'>"
+                . $this->renderMessages((array)$thread['messages']);
+
+            if($source !== '') {
+                $safeSource = $san->entities($source);
+                $out .= "<p class='uk-text-meta'><strong>" . $this->_('Page:') . '</strong> '
+                    . ($pageTitle !== '' ? "{$pageTitle} · " : '')
+                    . "<a href='{$safeSource}' target='_blank' rel='noopener'>{$safeSource}</a></p>";
+            }
+            if($referrer !== '') {
+                $safeReferrer = $san->entities($referrer);
+                $out .= "<p class='uk-text-meta'><strong>" . $this->_('Referrer:') . "</strong> {$safeReferrer}</p>";
+            }
+
+            $out .= "<form method='post' class='uk-flex uk-flex-middle liora-admin-status'>{$csrf}"
+                . "<input type='hidden' name='action' value='status'><input type='hidden' name='id' value='" . (int)$thread['id'] . "'>"
                 . "<select name='status' class='uk-select uk-form-width-medium'>";
             foreach(LioraStore::statuses() as $status) {
-                $selected = $status === $row['status'] ? ' selected' : '';
+                $selected = $status === $thread['status'] ? ' selected' : '';
                 $out .= "<option value='{$status}'{$selected}>{$status}</option>";
             }
             $out .= "</select><button class='uk-button uk-button-default' type='submit'>" . $this->_('Update') . '</button></form></article>';
         }
         return $out;
+    }
+
+    protected function renderMessages(array $messages): string {
+        $san = $this->wire('sanitizer');
+        $out = "<div class='liora-admin-messages'>";
+        foreach($messages as $message) {
+            $role = in_array($message['role'], ['user', 'assistant', 'error'], true)
+                ? $message['role']
+                : 'user';
+            $label = $role === 'assistant'
+                ? $this->_('Liora')
+                : ($role === 'error' ? $this->_('Error') : $this->_('Visitor'));
+            $content = $san->entities((string)$message['content']);
+            $model = trim((string)$message['provider'] . ' / ' . (string)$message['model'], ' /');
+            $meta = $san->entities((string)$message['created_at'] . ($model !== '' ? ' · ' . $model : ''));
+            if($role === 'assistant') {
+                $out .= "<blockquote class='liora-admin-message liora-admin-message--assistant'>"
+                    . "<div class='liora-admin-message__meta'>{$label} · {$meta}</div>"
+                    . "<pre><code>{$content}</code></pre></blockquote>";
+            } else {
+                $out .= "<div class='liora-admin-message liora-admin-message--{$role}'>"
+                    . "<div class='liora-admin-message__meta'>{$label} · {$meta}</div>"
+                    . "<div class='liora-admin-message__content'>{$content}</div></div>";
+            }
+        }
+        return $out . '</div>';
     }
 }

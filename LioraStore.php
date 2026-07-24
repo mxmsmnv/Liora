@@ -1,125 +1,228 @@
 <?php namespace ProcessWire;
 
 /**
- * Persistence for Liora demand signals.
+ * Thread/message persistence for Liora.
  *
  * Session identifiers are one-way hashes; IP addresses and user agents are
  * intentionally not stored.
  */
 class LioraStore extends Wire {
 
-    public const TABLE = 'liora_queries';
+    public const THREADS = 'liora_threads';
+    public const MESSAGES = 'liora_messages';
+    public const LEGACY = 'liora_queries';
+
+    protected bool $tablesEnsured = false;
 
     public function ensureTable(): void {
-        $table = self::TABLE;
-        $this->wire('database')->exec(
-            "CREATE TABLE IF NOT EXISTS `{$table}` (
+        if($this->tablesEnsured) return;
+        $db = $this->wire('database');
+        $db->exec(
+            "CREATE TABLE IF NOT EXISTS `" . self::THREADS . "` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                `request_hash` CHAR(64) NOT NULL,
+                `public_id` VARCHAR(64) NOT NULL,
+                `title` VARCHAR(255) NOT NULL DEFAULT '',
                 `original_query` VARCHAR(500) NOT NULL DEFAULT '',
-                `question` TEXT NOT NULL,
-                `response` MEDIUMTEXT NULL,
-                `provider` VARCHAR(64) NOT NULL DEFAULT '',
-                `model` VARCHAR(255) NOT NULL DEFAULT '',
                 `context` VARCHAR(255) NOT NULL DEFAULT '',
                 `source_url` VARCHAR(2048) NOT NULL DEFAULT '',
+                `referrer_url` VARCHAR(2048) NOT NULL DEFAULT '',
                 `page_id` INT UNSIGNED NOT NULL DEFAULT 0,
+                `page_title` VARCHAR(255) NOT NULL DEFAULT '',
                 `user_id` INT UNSIGNED NOT NULL DEFAULT 0,
                 `session_hash` CHAR(64) NOT NULL DEFAULT '',
+                `country_code` CHAR(2) NOT NULL DEFAULT '',
+                `country` VARCHAR(128) NOT NULL DEFAULT '',
+                `region` VARCHAR(128) NOT NULL DEFAULT '',
+                `city` VARCHAR(128) NOT NULL DEFAULT '',
+                `status` VARCHAR(32) NOT NULL DEFAULT 'new',
+                `message_count` INT UNSIGNED NOT NULL DEFAULT 0,
+                `created_at` DATETIME NOT NULL,
+                `updated_at` DATETIME NOT NULL,
+                `reviewed_at` DATETIME NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `public_id` (`public_id`),
+                KEY `status_updated` (`status`, `updated_at`),
+                KEY `original_query` (`original_query`(191)),
+                KEY `page_updated` (`page_id`, `updated_at`),
+                KEY `session_updated` (`session_hash`, `updated_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+        $db->exec(
+            "CREATE TABLE IF NOT EXISTS `" . self::MESSAGES . "` (
+                `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `thread_id` INT UNSIGNED NOT NULL,
+                `legacy_query_id` INT UNSIGNED NULL,
+                `role` VARCHAR(24) NOT NULL,
+                `content` MEDIUMTEXT NOT NULL,
+                `provider` VARCHAR(64) NOT NULL DEFAULT '',
+                `model` VARCHAR(255) NOT NULL DEFAULT '',
+                `source_url` VARCHAR(2048) NOT NULL DEFAULT '',
+                `page_id` INT UNSIGNED NOT NULL DEFAULT 0,
                 `tokens_input` INT UNSIGNED NOT NULL DEFAULT 0,
                 `tokens_output` INT UNSIGNED NOT NULL DEFAULT 0,
                 `tokens_total` INT UNSIGNED NOT NULL DEFAULT 0,
                 `cached` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-                `status` VARCHAR(32) NOT NULL DEFAULT 'new',
                 `error` VARCHAR(1000) NOT NULL DEFAULT '',
                 `created_at` DATETIME NOT NULL,
-                `reviewed_at` DATETIME NULL,
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `request_hash` (`request_hash`),
-                KEY `status_created` (`status`, `created_at`),
-                KEY `original_query` (`original_query`(191)),
-                KEY `page_created` (`page_id`, `created_at`)
+                UNIQUE KEY `legacy_query_id` (`legacy_query_id`),
+                KEY `thread_created` (`thread_id`, `created_at`),
+                CONSTRAINT `liora_messages_thread`
+                    FOREIGN KEY (`thread_id`) REFERENCES `" . self::THREADS . "` (`id`)
+                    ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
+        $this->tablesEnsured = true;
     }
 
     public function dropTable(): void {
-        $this->wire('database')->exec("DROP TABLE IF EXISTS `" . self::TABLE . "`");
+        $db = $this->wire('database');
+        $db->exec("DROP TABLE IF EXISTS `" . self::MESSAGES . "`");
+        $db->exec("DROP TABLE IF EXISTS `" . self::THREADS . "`");
+        $db->exec("DROP TABLE IF EXISTS `" . self::LEGACY . "`");
+        $this->tablesEnsured = false;
     }
 
-    public function add(array $data): bool {
+    public function createThread(array $data): array {
         $this->ensureTable();
-        $defaults = [
-            'request_hash' => '',
+        $now = (string)($data['created_at'] ?? date('Y-m-d H:i:s'));
+        $publicId = $this->validPublicId((string)($data['public_id'] ?? ''))
+            ?: bin2hex(random_bytes(16));
+        if($this->threadByPublicId($publicId)) $publicId = bin2hex(random_bytes(16));
+        $row = array_merge([
+            'title' => '',
             'original_query' => '',
-            'question' => '',
-            'response' => '',
-            'provider' => '',
-            'model' => '',
             'context' => '',
             'source_url' => '',
+            'referrer_url' => '',
             'page_id' => 0,
+            'page_title' => '',
             'user_id' => 0,
             'session_hash' => '',
-            'tokens_input' => 0,
-            'tokens_output' => 0,
-            'tokens_total' => 0,
-            'cached' => 0,
+            'country_code' => '',
+            'country' => '',
+            'region' => '',
+            'city' => '',
             'status' => 'new',
-            'error' => '',
-            'created_at' => date('Y-m-d H:i:s'),
-        ];
-        $row = array_merge($defaults, $data);
-        if($row['request_hash'] === '' || trim((string)$row['question']) === '') return false;
+        ], $data);
 
-        $sql = "INSERT IGNORE INTO `" . self::TABLE . "`
-            (`request_hash`, `original_query`, `question`, `response`, `provider`, `model`,
-             `context`, `source_url`, `page_id`, `user_id`, `session_hash`,
-             `tokens_input`, `tokens_output`, `tokens_total`, `cached`, `status`, `error`, `created_at`)
+        $stmt = $this->wire('database')->prepare(
+            "INSERT INTO `" . self::THREADS . "`
+            (`public_id`,`title`,`original_query`,`context`,`source_url`,`referrer_url`,
+             `page_id`,`page_title`,`user_id`,`session_hash`,`country_code`,`country`,
+             `region`,`city`,`status`,`created_at`,`updated_at`)
             VALUES
-            (:request_hash, :original_query, :question, :response, :provider, :model,
-             :context, :source_url, :page_id, :user_id, :session_hash,
-             :tokens_input, :tokens_output, :tokens_total, :cached, :status, :error, :created_at)";
-        $stmt = $this->wire('database')->prepare($sql);
+            (:public_id,:title,:original_query,:context,:source_url,:referrer_url,
+             :page_id,:page_title,:user_id,:session_hash,:country_code,:country,
+             :region,:city,:status,:created_at,:updated_at)"
+        );
         $stmt->execute([
-            ':request_hash' => (string)$row['request_hash'],
+            ':public_id' => $publicId,
+            ':title' => mb_substr((string)$row['title'], 0, 255),
             ':original_query' => mb_substr((string)$row['original_query'], 0, 500),
-            ':question' => (string)$row['question'],
-            ':response' => (string)$row['response'],
-            ':provider' => mb_substr((string)$row['provider'], 0, 64),
-            ':model' => mb_substr((string)$row['model'], 0, 255),
             ':context' => mb_substr((string)$row['context'], 0, 255),
             ':source_url' => mb_substr((string)$row['source_url'], 0, 2048),
+            ':referrer_url' => mb_substr((string)$row['referrer_url'], 0, 2048),
             ':page_id' => max(0, (int)$row['page_id']),
+            ':page_title' => mb_substr((string)$row['page_title'], 0, 255),
             ':user_id' => max(0, (int)$row['user_id']),
             ':session_hash' => mb_substr((string)$row['session_hash'], 0, 64),
-            ':tokens_input' => max(0, (int)$row['tokens_input']),
-            ':tokens_output' => max(0, (int)$row['tokens_output']),
-            ':tokens_total' => max(0, (int)$row['tokens_total']),
-            ':cached' => !empty($row['cached']) ? 1 : 0,
+            ':country_code' => mb_substr(strtoupper((string)$row['country_code']), 0, 2),
+            ':country' => mb_substr((string)$row['country'], 0, 128),
+            ':region' => mb_substr((string)$row['region'], 0, 128),
+            ':city' => mb_substr((string)$row['city'], 0, 128),
             ':status' => $this->validStatus((string)$row['status']),
-            ':error' => mb_substr((string)$row['error'], 0, 1000),
-            ':created_at' => (string)$row['created_at'],
+            ':created_at' => $now,
+            ':updated_at' => $now,
         ]);
-        return $stmt->rowCount() > 0;
+        return $this->threadById((int)$this->wire('database')->lastInsertId());
     }
 
-    public function summary(): array {
+    public function findOwnedThread(string $publicId, string $sessionHash, int $userId = 0): array {
         $this->ensureTable();
-        $sql = "SELECT
-            COUNT(*) total,
-            SUM(status='new') new_count,
-            SUM(status='failed') failed,
-            SUM(cached=1) cached,
-            SUM(created_at >= CURDATE()) today,
-            COALESCE(SUM(tokens_total), 0) tokens
-            FROM `" . self::TABLE . "`";
-        return (array)$this->wire('database')->query($sql)->fetch(\PDO::FETCH_ASSOC);
+        $publicId = $this->validPublicId($publicId);
+        if($publicId === '') return [];
+        $sql = "SELECT * FROM `" . self::THREADS . "` WHERE public_id=:public_id";
+        $params = [':public_id' => $publicId];
+        if($userId > 0) {
+            $sql .= ' AND (user_id=:user_id OR session_hash=:session_hash)';
+            $params[':user_id'] = $userId;
+            $params[':session_hash'] = $sessionHash;
+        } else {
+            $sql .= ' AND session_hash=:session_hash';
+            $params[':session_hash'] = $sessionHash;
+        }
+        $stmt = $this->wire('database')->prepare($sql . ' LIMIT 1');
+        $stmt->execute($params);
+        return (array)($stmt->fetch(\PDO::FETCH_ASSOC) ?: []);
     }
 
-    public function recent(int $limit = 100, string $status = ''): array {
+    public function threadById(int $id): array {
+        if($id < 1) return [];
+        $stmt = $this->wire('database')->prepare(
+            "SELECT * FROM `" . self::THREADS . "` WHERE id=:id LIMIT 1"
+        );
+        $stmt->execute([':id' => $id]);
+        return (array)($stmt->fetch(\PDO::FETCH_ASSOC) ?: []);
+    }
+
+    public function addMessage(int $threadId, string $role, string $content, array $meta = []): int {
         $this->ensureTable();
-        $limit = max(1, min(500, $limit));
+        if($threadId < 1 || trim($content) === '') return 0;
+        $role = in_array($role, ['user', 'assistant', 'error'], true) ? $role : 'user';
+        $created = (string)($meta['created_at'] ?? date('Y-m-d H:i:s'));
+        $legacyId = isset($meta['legacy_query_id']) ? (int)$meta['legacy_query_id'] : null;
+        $stmt = $this->wire('database')->prepare(
+            "INSERT IGNORE INTO `" . self::MESSAGES . "`
+            (`thread_id`,`legacy_query_id`,`role`,`content`,`provider`,`model`,`source_url`,
+             `page_id`,`tokens_input`,`tokens_output`,`tokens_total`,`cached`,`error`,`created_at`)
+            VALUES
+            (:thread_id,:legacy_query_id,:role,:content,:provider,:model,:source_url,
+             :page_id,:tokens_input,:tokens_output,:tokens_total,:cached,:error,:created_at)"
+        );
+        $stmt->execute([
+            ':thread_id' => $threadId,
+            ':legacy_query_id' => $legacyId ?: null,
+            ':role' => $role,
+            ':content' => $content,
+            ':provider' => mb_substr((string)($meta['provider'] ?? ''), 0, 64),
+            ':model' => mb_substr((string)($meta['model'] ?? ''), 0, 255),
+            ':source_url' => mb_substr((string)($meta['source_url'] ?? ''), 0, 2048),
+            ':page_id' => max(0, (int)($meta['page_id'] ?? 0)),
+            ':tokens_input' => max(0, (int)($meta['tokens_input'] ?? 0)),
+            ':tokens_output' => max(0, (int)($meta['tokens_output'] ?? 0)),
+            ':tokens_total' => max(0, (int)($meta['tokens_total'] ?? 0)),
+            ':cached' => !empty($meta['cached']) ? 1 : 0,
+            ':error' => mb_substr((string)($meta['error'] ?? ''), 0, 1000),
+            ':created_at' => $created,
+        ]);
+        if($stmt->rowCount() < 1) return 0;
+        $messageId = (int)$this->wire('database')->lastInsertId();
+        $update = $this->wire('database')->prepare(
+            "UPDATE `" . self::THREADS . "`
+             SET message_count=message_count+1, updated_at=:updated_at
+             WHERE id=:id"
+        );
+        $update->execute([':updated_at' => $created, ':id' => $threadId]);
+        return $messageId;
+    }
+
+    public function messages(int $threadId, int $limit = 40): array {
+        $this->ensureTable();
+        $limit = max(1, min(200, $limit));
+        $stmt = $this->wire('database')->prepare(
+            "SELECT * FROM (
+                SELECT * FROM `" . self::MESSAGES . "`
+                WHERE thread_id=:thread_id ORDER BY id DESC LIMIT {$limit}
+             ) recent ORDER BY id ASC"
+        );
+        $stmt->execute([':thread_id' => $threadId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function recentThreads(int $limit = 100, string $status = ''): array {
+        $this->ensureTable();
+        $limit = max(1, min(300, $limit));
         $params = [];
         $where = '';
         if($status !== '' && in_array($status, self::statuses(), true)) {
@@ -127,20 +230,57 @@ class LioraStore extends Wire {
             $params[':status'] = $status;
         }
         $stmt = $this->wire('database')->prepare(
-            "SELECT * FROM `" . self::TABLE . "`{$where} ORDER BY id DESC LIMIT {$limit}"
+            "SELECT * FROM `" . self::THREADS . "`{$where} ORDER BY updated_at DESC, id DESC LIMIT {$limit}"
         );
         $stmt->execute($params);
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        $threads = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        if(!$threads) return [];
+
+        $ids = array_map('intval', array_column($threads, 'id'));
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $messageStmt = $this->wire('database')->prepare(
+            "SELECT * FROM `" . self::MESSAGES . "`
+             WHERE thread_id IN ({$placeholders}) ORDER BY thread_id, id"
+        );
+        $messageStmt->execute($ids);
+        $grouped = [];
+        foreach($messageStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $message) {
+            $grouped[(int)$message['thread_id']][] = $message;
+        }
+        foreach($threads as &$thread) {
+            $thread['messages'] = $grouped[(int)$thread['id']] ?? [];
+        }
+        unset($thread);
+        return $threads;
+    }
+
+    public function summary(): array {
+        $this->ensureTable();
+        $threads = $this->wire('database')->query(
+            "SELECT COUNT(*) total,
+                SUM(status='new') new_count,
+                SUM(status='failed') failed,
+                SUM(updated_at >= CURDATE()) today
+             FROM `" . self::THREADS . "`"
+        )->fetch(\PDO::FETCH_ASSOC) ?: [];
+        $messages = $this->wire('database')->query(
+            "SELECT COUNT(*) messages,
+                SUM(role='user') questions,
+                COALESCE(SUM(tokens_total),0) tokens
+             FROM `" . self::MESSAGES . "`"
+        )->fetch(\PDO::FETCH_ASSOC) ?: [];
+        return array_merge($threads, $messages);
     }
 
     public function topDemand(int $limit = 20): array {
         $this->ensureTable();
         $limit = max(1, min(100, $limit));
-        $sql = "SELECT original_query, COUNT(*) hits, MAX(created_at) last_seen
-            FROM `" . self::TABLE . "`
+        $sql = "SELECT original_query, COUNT(*) threads, SUM(message_count) messages,
+                MAX(updated_at) last_seen
+            FROM `" . self::THREADS . "`
             WHERE original_query <> '' AND status <> 'dismissed'
             GROUP BY original_query
-            ORDER BY hits DESC, last_seen DESC
+            ORDER BY threads DESC, messages DESC, last_seen DESC
             LIMIT {$limit}";
         return $this->wire('database')->query($sql)->fetchAll(\PDO::FETCH_ASSOC) ?: [];
     }
@@ -151,13 +291,87 @@ class LioraStore extends Wire {
             ? date('Y-m-d H:i:s')
             : null;
         $stmt = $this->wire('database')->prepare(
-            "UPDATE `" . self::TABLE . "` SET status=:status, reviewed_at=:reviewed WHERE id=:id"
+            "UPDATE `" . self::THREADS . "` SET status=:status, reviewed_at=:reviewed WHERE id=:id"
         );
         return $stmt->execute([':status' => $status, ':reviewed' => $reviewed, ':id' => $id]);
     }
 
+    public function migrateLegacyQueries(): int {
+        $this->ensureTable();
+        if(!$this->tableExists(self::LEGACY)) return 0;
+        $rows = $this->wire('database')->query(
+            "SELECT * FROM `" . self::LEGACY . "` ORDER BY id"
+        )->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        $count = 0;
+        foreach($rows as $row) {
+            $sessionHash = trim((string)($row['session_hash'] ?? ''));
+            $group = $sessionHash === ''
+                ? 'legacy-row-' . (int)$row['id']
+                : $sessionHash . '|' . (string)($row['source_url'] ?? '') . '|' . substr((string)$row['created_at'], 0, 10);
+            $publicId = substr(hash('sha256', 'legacy|' . $group), 0, 32);
+            $thread = $this->threadByPublicId($publicId);
+            if(!$thread) {
+                $thread = $this->createThread([
+                    'public_id' => $publicId,
+                    'title' => (string)($row['original_query'] ?: $row['question']),
+                    'original_query' => (string)($row['original_query'] ?? ''),
+                    'context' => (string)($row['context'] ?? 'legacy'),
+                    'source_url' => (string)($row['source_url'] ?? ''),
+                    'page_id' => (int)($row['page_id'] ?? 0),
+                    'user_id' => (int)($row['user_id'] ?? 0),
+                    'session_hash' => (string)($row['session_hash'] ?? ''),
+                    'status' => (string)($row['status'] ?? 'new'),
+                    'created_at' => (string)($row['created_at'] ?? date('Y-m-d H:i:s')),
+                ]);
+            }
+            $userMessageId = $this->addMessage((int)$thread['id'], 'user', (string)$row['question'], [
+                'legacy_query_id' => (int)$row['id'],
+                'source_url' => (string)($row['source_url'] ?? ''),
+                'page_id' => (int)($row['page_id'] ?? 0),
+                'created_at' => (string)($row['created_at'] ?? date('Y-m-d H:i:s')),
+            ]);
+            if(!$userMessageId) continue;
+            $count++;
+            $response = trim((string)($row['response'] ?? ''));
+            if($response !== '') {
+                $this->addMessage((int)$thread['id'], 'assistant', $response, [
+                    'provider' => (string)($row['provider'] ?? ''),
+                    'model' => (string)($row['model'] ?? ''),
+                    'source_url' => (string)($row['source_url'] ?? ''),
+                    'page_id' => (int)($row['page_id'] ?? 0),
+                    'tokens_input' => (int)($row['tokens_input'] ?? 0),
+                    'tokens_output' => (int)($row['tokens_output'] ?? 0),
+                    'tokens_total' => (int)($row['tokens_total'] ?? 0),
+                    'cached' => (int)($row['cached'] ?? 0),
+                    'error' => (string)($row['error'] ?? ''),
+                    'created_at' => (string)($row['created_at'] ?? date('Y-m-d H:i:s')),
+                ]);
+            }
+        }
+        return $count;
+    }
+
     public static function statuses(): array {
         return ['new', 'reviewing', 'content_added', 'dismissed', 'failed'];
+    }
+
+    public function threadByPublicId(string $publicId): array {
+        $stmt = $this->wire('database')->prepare(
+            "SELECT * FROM `" . self::THREADS . "` WHERE public_id=:public_id LIMIT 1"
+        );
+        $stmt->execute([':public_id' => $publicId]);
+        return (array)($stmt->fetch(\PDO::FETCH_ASSOC) ?: []);
+    }
+
+    protected function tableExists(string $table): bool {
+        $stmt = $this->wire('database')->prepare('SHOW TABLES LIKE :table');
+        $stmt->execute([':table' => $table]);
+        return (bool)$stmt->fetchColumn();
+    }
+
+    protected function validPublicId(string $id): string {
+        $id = strtolower(trim($id));
+        return preg_match('/^[a-z0-9-]{24,64}$/', $id) ? $id : '';
     }
 
     protected function validStatus(string $status): string {
