@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.8.0
+ * @version 1.9.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 180,
+            'version' => 190,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -438,7 +438,8 @@ class Liora extends WireData implements Module, ConfigurableModule {
      * Render the reusable public CTA/chat widget.
      *
      * Options: originalQuery, context, sourceUrl, pageId, heading, intro,
-     * placeholder, compact.
+     * placeholder, showWelcomeMessage, welcomeMessage, showSuggestedPrompts,
+     * suggestedPrompts, theme, compact.
      */
     public function renderWidget(array $options = []): string {
         if(!(bool)$this->setting('widgetEnabled', true)) return '';
@@ -460,6 +461,17 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $welcomeMessage = (bool)($options['showWelcomeMessage'] ?? $this->setting('showWelcomeMessage', true))
             ? trim((string)($options['welcomeMessage'] ?? $this->widgetText('welcomeMessage')))
             : '';
+        $suggestedPrompts = [];
+        if((bool)($options['showSuggestedPrompts'] ?? $this->setting('showSuggestedPrompts', true))) {
+            $optionPrompts = $options['suggestedPrompts'] ?? null;
+            for($index = 1; $index <= 3; $index++) {
+                $prompt = is_array($optionPrompts)
+                    ? trim((string)($optionPrompts[$index - 1] ?? ''))
+                    : trim($this->widgetText('suggestedPrompt' . $index));
+                $prompt = mb_substr($prompt, 0, 180);
+                if($prompt !== '' && !in_array($prompt, $suggestedPrompts, true)) $suggestedPrompts[] = $prompt;
+            }
+        }
         $privacyNotice = trim($this->widgetText('privacyNotice'));
         $theme = trim((string)($options['theme'] ?? $this->setting('widgetTheme', 'default')));
         $endpoint = (string)$this->setting('endpoint', '/agent/');
@@ -516,6 +528,16 @@ class Liora extends WireData implements Module, ConfigurableModule {
         foreach($attrs as $name => $value) {
             $dataAttrs .= ' ' . $name . '="' . $san->entities($value) . '"';
         }
+        $suggestions = '';
+        if($suggestedPrompts) {
+            $suggestions = "<div class='liora-widget__suggestions' data-liora-suggestions aria-label='"
+                . $san->entities($this->widgetText('widgetSuggestionsLabel')) . "'>";
+            foreach($suggestedPrompts as $prompt) {
+                $escapedPrompt = $san->entities($prompt);
+                $suggestions .= "<button type='button' class='liora-widget__suggestion' data-liora-suggestion='{$escapedPrompt}'>{$escapedPrompt}</button>";
+            }
+            $suggestions .= '</div>';
+        }
 
         return $assets . $themeCss
             . "<section id='{$id}' class='liora-widget{$compact}'{$dataAttrs}>"
@@ -527,6 +549,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             . "<button type='button' data-liora-expand-button aria-pressed='false'>" . $san->entities($this->widgetText('widgetExpand')) . "</button></div>"
             . "<div class='liora-widget__history' data-liora-history-panel hidden></div>"
             . "<div class='liora-widget__messages' data-liora-messages aria-live='polite'></div>"
+            . $suggestions
             . "<form class='liora-widget__form' data-liora-form>"
             . "<label class='liora-sr-only' for='{$id}-question'>" . $san->entities($this->widgetText('widgetAskLiora')) . "</label>"
             . "<input id='{$id}-question' data-liora-input type='text' maxlength='"
@@ -751,6 +774,13 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldCheckbox');
+        $field->attr('name', 'showSuggestedPrompts');
+        $field->label = $this->_('Show starter questions in an empty conversation');
+        $field->description = $this->_('Up to three localized questions appear as buttons. Choosing one immediately starts a normal tracked conversation.');
+        if((bool)$this->setting('showSuggestedPrompts', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldCheckbox');
         $field->attr('name', 'showCopyButton');
         $field->label = $this->_('Show a copy action on chat messages');
         if((bool)$this->setting('showCopyButton', true)) $field->attr('checked', 'checked');
@@ -852,6 +882,10 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'widgetIntro' => [$this->_('Introduction'), 'textarea', 50],
             'widgetPlaceholder' => [$this->_('Question placeholder'), 'text', 50],
             'welcomeMessage' => [$this->_('Welcome message'), 'textarea', 50],
+            'suggestedPrompt1' => [$this->_('Starter question 1'), 'text', 34],
+            'suggestedPrompt2' => [$this->_('Starter question 2'), 'text', 33],
+            'suggestedPrompt3' => [$this->_('Starter question 3'), 'text', 33],
+            'widgetSuggestionsLabel' => [$this->_('Starter questions accessible label'), 'text', 50],
             'privacyNotice' => [$this->_('Conversation quality notice'), 'textarea', 100],
             'widgetPrevious' => [$this->_('Button: previous conversations'), 'text', 34],
             'widgetNew' => [$this->_('Button: new conversation'), 'text', 33],
@@ -1630,6 +1664,10 @@ PHP;
             'widgetIntro' => 'Tell me what you want to know. Your question also helps us improve this page.',
             'widgetPlaceholder' => 'Ask about products, pairings, brands or cocktails…',
             'welcomeMessage' => 'Hi — I’m Liora. Ask me about a bottle, cocktail, pairing, brand, or anything you could not find on this page.',
+            'suggestedPrompt1' => 'Help me choose a bottle',
+            'suggestedPrompt2' => 'Suggest a food pairing',
+            'suggestedPrompt3' => 'What do people think about this?',
+            'widgetSuggestionsLabel' => 'Suggested questions',
             'privacyNotice' => 'Your questions help us improve LQRS and may be reviewed for quality. Please do not include personal details.',
             'widgetPrevious' => 'Previous conversations',
             'widgetNew' => 'New conversation',
@@ -1674,6 +1712,7 @@ PHP;
             'de' => ['_label' => 'Deutsch',
                 'widgetHeading' => 'Noch Fragen? Fragen Sie Liora', 'widgetIntro' => 'Sagen Sie uns, was Sie wissen möchten. Ihre Frage hilft uns auch, diese Seite zu verbessern.',
                 'widgetPlaceholder' => 'Fragen Sie nach Produkten, Kombinationen, Marken oder Cocktails…', 'welcomeMessage' => 'Hallo — ich bin Liora. Fragen Sie mich nach einer Flasche, einem Cocktail, einer Kombination, einer Marke oder nach etwas, das Sie auf dieser Seite nicht gefunden haben.',
+                'suggestedPrompt1' => 'Hilf mir, eine Flasche auszuwählen', 'suggestedPrompt2' => 'Empfiehl mir eine Speisebegleitung', 'suggestedPrompt3' => 'Was denkt die Community darüber?', 'widgetSuggestionsLabel' => 'Vorgeschlagene Fragen',
                 'privacyNotice' => 'Ihre Fragen helfen uns, LQRS zu verbessern, und können zur Qualitätskontrolle geprüft werden. Bitte geben Sie keine persönlichen Daten an.',
                 'widgetPrevious' => 'Frühere Gespräche', 'widgetNew' => 'Neues Gespräch', 'widgetExpand' => 'Gespräch erweitern', 'widgetCompact' => 'Gespräch verkleinern',
                 'widgetEditTitle' => 'Titel bearbeiten', 'widgetSave' => 'Speichern', 'widgetCancel' => 'Abbrechen', 'widgetAsk' => 'Fragen', 'widgetAskLiora' => 'Liora fragen',
@@ -1684,6 +1723,7 @@ PHP;
             'fr' => ['_label' => 'Français',
                 'widgetHeading' => 'Vous cherchez encore ? Demandez à Liora', 'widgetIntro' => 'Dites-nous ce que vous souhaitez savoir. Votre question nous aide aussi à améliorer cette page.',
                 'widgetPlaceholder' => 'Posez une question sur les produits, accords, marques ou cocktails…', 'welcomeMessage' => 'Bonjour, je suis Liora. Demandez-moi conseil sur une bouteille, un cocktail, un accord, une marque ou ce que vous n’avez pas trouvé sur cette page.',
+                'suggestedPrompt1' => 'Aidez-moi à choisir une bouteille', 'suggestedPrompt2' => 'Suggérez un accord mets et boisson', 'suggestedPrompt3' => 'Qu’en pense la communauté ?', 'widgetSuggestionsLabel' => 'Questions suggérées',
                 'privacyNotice' => 'Vos questions nous aident à améliorer LQRS et peuvent être examinées pour le contrôle qualité. N’indiquez pas de données personnelles.',
                 'widgetPrevious' => 'Conversations précédentes', 'widgetNew' => 'Nouvelle conversation', 'widgetExpand' => 'Agrandir la conversation', 'widgetCompact' => 'Réduire la conversation',
                 'widgetEditTitle' => 'Modifier le titre', 'widgetSave' => 'Enregistrer', 'widgetCancel' => 'Annuler', 'widgetAsk' => 'Demander', 'widgetAskLiora' => 'Demander à Liora',
@@ -1694,6 +1734,7 @@ PHP;
             'es' => ['_label' => 'Español',
                 'widgetHeading' => '¿Aún buscas? Pregunta a Liora', 'widgetIntro' => 'Dinos qué quieres saber. Tu pregunta también nos ayuda a mejorar esta página.',
                 'widgetPlaceholder' => 'Pregunta sobre productos, maridajes, marcas o cócteles…', 'welcomeMessage' => 'Hola, soy Liora. Pregúntame por una botella, cóctel, maridaje, marca o cualquier cosa que no hayas encontrado en esta página.',
+                'suggestedPrompt1' => 'Ayúdame a elegir una botella', 'suggestedPrompt2' => 'Sugiere un maridaje', 'suggestedPrompt3' => '¿Qué opina la comunidad?', 'widgetSuggestionsLabel' => 'Preguntas sugeridas',
                 'privacyNotice' => 'Tus preguntas nos ayudan a mejorar LQRS y pueden revisarse para controlar la calidad. No incluyas datos personales.',
                 'widgetPrevious' => 'Conversaciones anteriores', 'widgetNew' => 'Nueva conversación', 'widgetExpand' => 'Ampliar conversación', 'widgetCompact' => 'Reducir conversación',
                 'widgetEditTitle' => 'Editar título', 'widgetSave' => 'Guardar', 'widgetCancel' => 'Cancelar', 'widgetAsk' => 'Preguntar', 'widgetAskLiora' => 'Preguntar a Liora',
@@ -1704,6 +1745,7 @@ PHP;
             'it' => ['_label' => 'Italiano',
                 'widgetHeading' => 'Cerchi ancora? Chiedi a Liora', 'widgetIntro' => 'Dicci cosa vuoi sapere. La tua domanda ci aiuta anche a migliorare questa pagina.',
                 'widgetPlaceholder' => 'Chiedi di prodotti, abbinamenti, marchi o cocktail…', 'welcomeMessage' => 'Ciao, sono Liora. Chiedimi di una bottiglia, un cocktail, un abbinamento, un marchio o qualsiasi cosa tu non abbia trovato in questa pagina.',
+                'suggestedPrompt1' => 'Aiutami a scegliere una bottiglia', 'suggestedPrompt2' => 'Suggerisci un abbinamento', 'suggestedPrompt3' => 'Cosa ne pensa la community?', 'widgetSuggestionsLabel' => 'Domande suggerite',
                 'privacyNotice' => 'Le tue domande ci aiutano a migliorare LQRS e possono essere esaminate per il controllo qualità. Non inserire dati personali.',
                 'widgetPrevious' => 'Conversazioni precedenti', 'widgetNew' => 'Nuova conversazione', 'widgetExpand' => 'Espandi conversazione', 'widgetCompact' => 'Riduci conversazione',
                 'widgetEditTitle' => 'Modifica titolo', 'widgetSave' => 'Salva', 'widgetCancel' => 'Annulla', 'widgetAsk' => 'Chiedi', 'widgetAskLiora' => 'Chiedi a Liora',
@@ -1714,6 +1756,7 @@ PHP;
             'nl' => ['_label' => 'Nederlands',
                 'widgetHeading' => 'Nog niet gevonden? Vraag het Liora', 'widgetIntro' => 'Vertel wat je wilt weten. Je vraag helpt ons ook deze pagina te verbeteren.',
                 'widgetPlaceholder' => 'Vraag naar producten, combinaties, merken of cocktails…', 'welcomeMessage' => 'Hallo, ik ben Liora. Vraag me naar een fles, cocktail, combinatie, merk of iets dat je niet op deze pagina kon vinden.',
+                'suggestedPrompt1' => 'Help me een fles te kiezen', 'suggestedPrompt2' => 'Stel een combinatie met eten voor', 'suggestedPrompt3' => 'Wat vindt de community hiervan?', 'widgetSuggestionsLabel' => 'Voorgestelde vragen',
                 'privacyNotice' => 'Je vragen helpen ons LQRS te verbeteren en kunnen voor kwaliteitscontrole worden bekeken. Deel geen persoonlijke gegevens.',
                 'widgetPrevious' => 'Eerdere gesprekken', 'widgetNew' => 'Nieuw gesprek', 'widgetExpand' => 'Gesprek vergroten', 'widgetCompact' => 'Gesprek verkleinen',
                 'widgetEditTitle' => 'Titel bewerken', 'widgetSave' => 'Opslaan', 'widgetCancel' => 'Annuleren', 'widgetAsk' => 'Vragen', 'widgetAskLiora' => 'Vraag Liora',
@@ -1724,6 +1767,7 @@ PHP;
             'pl' => ['_label' => 'Polski',
                 'widgetHeading' => 'Nadal szukasz? Zapytaj Liorę', 'widgetIntro' => 'Powiedz, czego chcesz się dowiedzieć. Twoje pytanie pomaga nam też ulepszać tę stronę.',
                 'widgetPlaceholder' => 'Zapytaj o produkty, połączenia, marki lub koktajle…', 'welcomeMessage' => 'Cześć, jestem Liora. Zapytaj mnie o butelkę, koktajl, połączenie, markę lub coś, czego nie udało Ci się znaleźć na tej stronie.',
+                'suggestedPrompt1' => 'Pomóż mi wybrać butelkę', 'suggestedPrompt2' => 'Zaproponuj połączenie z jedzeniem', 'suggestedPrompt3' => 'Co sądzi o tym społeczność?', 'widgetSuggestionsLabel' => 'Sugerowane pytania',
                 'privacyNotice' => 'Twoje pytania pomagają nam ulepszać LQRS i mogą być przeglądane w celu kontroli jakości. Nie podawaj danych osobowych.',
                 'widgetPrevious' => 'Poprzednie rozmowy', 'widgetNew' => 'Nowa rozmowa', 'widgetExpand' => 'Rozwiń rozmowę', 'widgetCompact' => 'Zwiń rozmowę',
                 'widgetEditTitle' => 'Edytuj tytuł', 'widgetSave' => 'Zapisz', 'widgetCancel' => 'Anuluj', 'widgetAsk' => 'Zapytaj', 'widgetAskLiora' => 'Zapytaj Liorę',
@@ -1734,6 +1778,7 @@ PHP;
             'ru' => ['_label' => 'Русский',
                 'widgetHeading' => 'Не нашли ответ? Спросите Лиору', 'widgetIntro' => 'Расскажите, что вы хотите узнать. Ваш вопрос также поможет нам улучшить эту страницу.',
                 'widgetPlaceholder' => 'Спросите о напитках, сочетаниях, брендах или коктейлях…', 'welcomeMessage' => 'Привет! Я Лиора. Спросите меня о напитке, коктейле, сочетании, бренде или о том, чего вы не нашли на этой странице.',
+                'suggestedPrompt1' => 'Помоги выбрать напиток', 'suggestedPrompt2' => 'Посоветуй сочетание с едой', 'suggestedPrompt3' => 'Что об этом думают другие?', 'widgetSuggestionsLabel' => 'Примеры вопросов',
                 'privacyNotice' => 'Ваши вопросы помогают нам улучшать LQRS и могут проверяться для контроля качества. Не указывайте личные данные.',
                 'widgetPrevious' => 'Прошлые разговоры', 'widgetNew' => 'Новый разговор', 'widgetExpand' => 'Развернуть разговор', 'widgetCompact' => 'Свернуть разговор',
                 'widgetEditTitle' => 'Изменить название', 'widgetSave' => 'Сохранить', 'widgetCancel' => 'Отмена', 'widgetAsk' => 'Спросить', 'widgetAskLiora' => 'Спросить Лиору',

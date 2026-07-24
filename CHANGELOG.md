@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.0 - 2026-07-24
+
+- Added up to three configurable, localizable starter-question buttons below the empty conversation.
+- Made a starter question immediately begin the same tracked Thread flow as a typed question, including page attribution and optional Atlas/Vox context.
+- Added a global visibility toggle plus per-widget `showSuggestedPrompts` and `suggestedPrompts` overrides.
+
 ## 1.8.0 - 2026-07-24
 
 - Added optional Vox context from published reviews, questions, replies and discussions on the current or Atlas-retrieved public page.

@@ -17,6 +17,7 @@ Squad owns provider credentials and transport. Liora adds:
 - privacy-conscious demand tracking without raw IP addresses;
 - optional country and city enrichment when the GeoIP module is installed;
 - configurable welcome copy for an otherwise empty conversation;
+- up to three configurable, localizable starter questions that begin a normal tracked conversation;
 - optional lexical-first, semantic-fallback answers from a selected Atlas collection;
 - optional published reviews, questions, replies and discussions from Vox;
 - an editable, friendly quality-review notice below the widget;
@@ -48,8 +49,19 @@ echo $liora->renderWidget([
     'originalQuery' => $searchQuery,
     'context' => $page->template->name,
     'pageId' => $page->id,
+    'suggestedPrompts' => [
+        'Help me choose a bottle',
+        'Suggest a food pairing',
+        'What do people think about this?',
+    ],
 ]);
 ```
+
+Starter questions are shown only while the conversation is empty. Clicking one
+submits it immediately through the normal endpoint, so the visitor can continue
+the same Thread after Liora answers. Configure and translate the three defaults
+in the module settings, hide them globally, or override them per widget with
+`showSuggestedPrompts` and `suggestedPrompts`.
 
 The JSON endpoint template only needs:
 

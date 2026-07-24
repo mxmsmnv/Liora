@@ -44,10 +44,23 @@ echo $liora->renderWidget([
     'heading' => 'Still looking? Ask Liora',
     'intro' => 'Ask a question about this page.',
     'placeholder' => 'What would you like to know?',
+    'showSuggestedPrompts' => true,
+    'suggestedPrompts' => [
+        'Help me choose a bottle',
+        'Suggest a food pairing',
+        'What do people think about this?',
+    ],
     'theme' => 'default',
     'compact' => false,
 ]);
 ```
+
+Starter questions appear only in an empty conversation. Clicking one submits it
+immediately and starts the same tracked Thread flow as a typed question. The
+visitor can then continue normally. Configure and translate the three defaults
+in Liora settings, or override them per widget with `suggestedPrompts` (up to
+three non-empty strings). Set `showSuggestedPrompts` to `false` to hide them for
+one widget.
 
 Use `theme => 'default'` for the adaptive Light + Dark theme, `light` to force
 the light palette, or `dark` to force the dark palette. The adaptive theme uses

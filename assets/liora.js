@@ -275,6 +275,7 @@
         const newButton = widget.querySelector('[data-liora-new-button]');
         const expandButton = widget.querySelector('[data-liora-expand-button]');
         const historyPanel = widget.querySelector('[data-liora-history-panel]');
+        const suggestions = widget.querySelector('[data-liora-suggestions]');
         if(!form || !input || !submit || !messages) return;
 
         const localHistory = widget.dataset.localHistory === '1';
@@ -300,6 +301,7 @@
 
         const showWelcome = () => {
             messages.replaceChildren();
+            if(suggestions) suggestions.hidden = false;
             if(!welcomeMessage) return;
             const item = addMessage(messages, 'assistant', welcomeMessage, 'none');
             item.classList.add('liora-message--welcome');
@@ -377,6 +379,7 @@
                 button.addEventListener('click', () => {
                     currentThread = thread;
                     messages.replaceChildren();
+                    if(suggestions) suggestions.hidden = true;
                     let lastMessage = null;
                     thread.messages.forEach(message => {
                         lastMessage = addMessage(messages, message.role, message.content, 'none');
@@ -462,6 +465,13 @@
         }
         showWelcome();
 
+        suggestions?.addEventListener('click', event => {
+            const button = event.target.closest('[data-liora-suggestion]');
+            if(!button || input.disabled) return;
+            input.value = String(button.dataset.lioraSuggestion || button.textContent || '').trim();
+            if(input.value) form.requestSubmit();
+        });
+
         form.addEventListener('submit', async event => {
             event.preventDefault();
             const question = input.value.trim();
@@ -474,6 +484,7 @@
             const userMessage = {role: 'user', content: question, createdAt: new Date().toISOString()};
             currentThread.messages.push(userMessage);
             messages.querySelector('[data-liora-welcome]')?.remove();
+            if(suggestions) suggestions.hidden = true;
             const userItem = addMessage(messages, 'user', question);
             addMessageMeta(userItem, userMessage, messageMetaOptions);
             persist();

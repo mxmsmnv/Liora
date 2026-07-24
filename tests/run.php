@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 180")
-        && str_contains($inputfield, "'version' => 180")
-        && str_contains($process, "'version' => 180"),
+    'release versions' => str_contains($module, "'version' => 190")
+        && str_contains($inputfield, "'version' => 190")
+        && str_contains($process, "'version' => 190"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -99,6 +99,12 @@ $checks = [
     'welcome preview' => str_contains($module, "attr('name', 'showWelcomeMessage')")
         && str_contains($javascript, 'showWelcome')
         && str_contains($javascript, 'dataset.lioraWelcome'),
+    'starter question prompts' => str_contains($module, "attr('name', 'showSuggestedPrompts')")
+        && str_contains($module, "'suggestedPrompt1'")
+        && str_contains($module, "'widgetSuggestionsLabel'")
+        && str_contains($javascript, "form.requestSubmit()")
+        && str_contains($javascript, "data-liora-suggestion")
+        && str_contains($widgetCss, '.liora-widget__suggestions'),
     'optional Atlas RAG' => str_contains($module, "attr('name', 'atlasEnabled')")
         && str_contains($module, 'atlasContext(')
         && str_contains($module, "'rag_sources'")
