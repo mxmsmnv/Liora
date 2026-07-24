@@ -1,5 +1,7 @@
 # Liora
 
+![Liora](assets/Liora.png)
+
 Liora is a ProcessWire AI answer CTA and visitor-demand analytics module for
 LQRS. It helps a visitor when a search or page does not answer their question,
 then records the question so editors can improve the underlying site content.

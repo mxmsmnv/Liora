@@ -10,6 +10,7 @@ $required = [
     'assets/liora-admin.css',
     'assets/liora-admin.js',
     'assets/liora.js',
+    'assets/Liora.png',
     'docs/INTEGRATION.md',
     'themes/default.json',
     'themes/light.json',
