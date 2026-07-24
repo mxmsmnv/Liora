@@ -19,6 +19,7 @@ retrieval, frontend, privacy and editorial-review layers around Squad.
 - one Thread per conversation with chronological messages;
 - context-aware follow-ups that retain recent visitor constraints;
 - optional Atlas retrieval from public site content;
+- optional live web search through Squad with normalized source attribution;
 - optional Vox reviews, questions, replies and discussions;
 - optional GeoIP country and city enrichment;
 - browser-only conversation history that the visitor explicitly restores;
@@ -60,6 +61,9 @@ Liora installs three ProcessWire modules:
 
 Atlas, Vox and GeoIP are optional. Liora continues without them when they are
 missing, disabled, empty or temporarily unavailable.
+
+Live web search is also optional and disabled by default because it can add
+provider charges and latency. It requires Squad 1.9.0 or newer.
 
 ## Installation
 
@@ -299,11 +303,35 @@ knows nothing” response.
 ### Atlas is not web search
 
 Atlas searches content already indexed from the site. It does not search the
-public internet. A consumer Gemini interface may show a richer answer because
-it uses Google Search grounding, while the same model through OpenRouter has no
-web access unless a separate search/grounding integration is configured.
+public internet. Live public search is a separate, explicit option.
 
 Liora must not claim that it browsed the web when it did not.
+
+## Optional live web search
+
+Enable **Use live web search** in **Modules → Liora → AI model** when answers
+need current public information. The maximum-results setting is passed to
+Squad, which selects the correct transport:
+
+- OpenRouter web plugin for every routed model;
+- Anthropic's native web-search tool;
+- OpenAI or xAI Responses API search;
+- native Google Search grounding.
+
+Search citations are normalized by Squad and merged with Atlas/Vox sources in
+the widget. With **Keep visitors on this website** enabled, external source
+titles remain visible as attribution but do not become outbound links. Web
+results must not be treated as proof that a product or price exists in the LQRS
+catalogue; Atlas or page context must confirm site-specific facts.
+
+Code integrations can override the module default per call:
+
+```php
+$result = $modules->get('Liora')->ask('What is new in Australian herbal liqueurs?', [
+    'webSearch' => true,
+    'webSearchMaxResults' => 5,
+]);
+```
 
 ## Optional Vox community context
 

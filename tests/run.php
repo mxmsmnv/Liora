@@ -38,12 +38,16 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 193")
-        && str_contains($inputfield, "'version' => 193")
-        && str_contains($process, "'version' => 193"),
+    'release versions' => str_contains($module, "'version' => 194")
+        && str_contains($inputfield, "'version' => 194")
+        && str_contains($process, "'version' => 194"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
+    'optional web search' => str_contains($module, "attr('name', 'webSearchEnabled')")
+        && str_contains($module, "'webSearch' =>")
+        && str_contains($module, "'webSearchMaxResults' =>")
+        && str_contains($module, "'sources' => (array)"),
     'thread storage' => str_contains($store, 'liora_threads') && str_contains($store, 'liora_messages'),
     'privacy storage' => str_contains($store, '`session_hash`') && !str_contains($store, '`ip_address`'),
     'GeoIP enrichment' => str_contains($module, "isInstalled('GeoIP')") && !str_contains($store, '`ip_address`'),

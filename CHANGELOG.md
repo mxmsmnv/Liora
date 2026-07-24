@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.4 - 2026-07-24
+
+- Added an optional live web-search setting with a configurable 1–10 result
+  limit, delegated entirely to Squad's provider adapters.
+- Kept Atlas and live web search conceptually separate: Atlas confirms LQRS
+  catalogue facts while public web evidence supplements current information.
+- Merged normalized provider citations into the widget source list while the
+  existing stay-on-site policy continues to prevent outbound navigation.
+
 ## 1.9.3 - 2026-07-24
 
 - Removed the vertical movement effect from starter-question hover states.

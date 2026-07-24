@@ -15,6 +15,10 @@ questions should become tracked Threads in **Setup → Liora Insights**.
 
 1. Install and configure Squad with an active provider and model.
 2. Install Liora and select the provider/model or keep the Squad default.
+   Live web search is disabled by default. Enable it in Liora settings or pass
+   `webSearch => true` and an optional `webSearchMaxResults` value (1–10) to
+   `ask()`, `chat()` or `streamChat()`. Squad 1.9.0+ translates the option to
+   OpenRouter, Anthropic, OpenAI, Google or xAI and returns normalized sources.
 3. Keep the endpoint setting aligned with the ProcessWire endpoint page. LQRS
    uses `/agent/` with this template:
 
