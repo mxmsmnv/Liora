@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.9.1
+ * @version 1.9.2
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 191,
+            'version' => 192,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -334,6 +334,9 @@ class Liora extends WireData implements Module, ConfigurableModule {
         }
         if($pageContext['source_url'] !== '') {
             $systemPrompt .= "\nThe visitor is asking from this site path: {$pageContext['source_url']}.";
+        }
+        if($history) {
+            $systemPrompt .= "\n\n" . $this->conversationContinuityPrompt();
         }
 
         if(!$this->isConfigured()) {
@@ -1238,18 +1241,37 @@ class Liora extends WireData implements Module, ConfigurableModule {
     }
 
     /**
-     * Add the preceding visitor question to short follow-ups so Atlas can
-     * resolve references such as “it”, “them” or “о нём”.
+     * Carry recent visitor constraints into retrieval for short follow-ups.
      */
     protected function retrievalQuestion(string $question, array $history): string {
-        $previous = '';
-        for($index = count($history) - 1; $index >= 0; $index--) {
+        $question = trim($question);
+        if($question === '') return '';
+
+        $looksLikeFollowUp = mb_strlen($question) <= 220
+            || preg_match('/^(and|or|yes|no|it|that|this|those|them|а|и|или|да|нет|его|её|их|это|этот|эта|эти|такой|такая|такие)\\b/iu', $question);
+        if(!$looksLikeFollowUp) return mb_substr($question, 0, 1600);
+
+        $visitorTurns = [];
+        for($index = count($history) - 1; $index >= 0 && count($visitorTurns) < 3; $index--) {
             if(($history[$index]['role'] ?? '') !== 'user') continue;
-            $previous = trim((string)($history[$index]['content'] ?? ''));
-            if($previous !== '') break;
+            $content = trim((string)($history[$index]['content'] ?? ''));
+            if($content === '' || in_array($content, $visitorTurns, true)) continue;
+            array_unshift($visitorTurns, mb_substr($content, 0, 500));
         }
-        if($previous === '') return $question;
-        return mb_substr($previous . "\nFollow-up question: " . $question, 0, 1600);
+        if(!$visitorTurns) return mb_substr($question, 0, 1600);
+
+        $context = "Recent visitor requests and constraints:\n- "
+            . implode("\n- ", $visitorTurns)
+            . "\nCurrent follow-up: " . $question;
+        return mb_substr($context, 0, 1600);
+    }
+
+    protected function conversationContinuityPrompt(): string {
+        return 'Maintain continuity with the conversation history. Treat a short visitor reply as an answer '
+            . 'to your immediately preceding question and combine it with all earlier constraints. Do not greet '
+            . 'the visitor again, restart the topic, repeat information already established, or ask the same '
+            . 'question in different words. Once the visitor has supplied a requested preference, use it to move '
+            . 'the task forward with concrete recommendations or the next single most useful clarification.';
     }
 
     /**

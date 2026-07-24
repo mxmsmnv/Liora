@@ -11,7 +11,7 @@ class InputfieldLiora extends Inputfield {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Inputfield Liora',
-            'version' => 191,
+            'version' => 192,
             'summary' => 'Reusable Liora AI CTA and chat Inputfield.',
             'author' => 'Maxim Semenov',
             'icon' => 'commenting',

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.2 - 2026-07-24
+
+- Added an explicit conversation-continuity instruction for follow-up turns.
+- Made short replies inherit earlier constraints instead of restarting the topic, greeting again or repeating the same questions.
+- Expanded Atlas follow-up retrieval from one preceding visitor message to the three most recent distinct visitor constraints.
+
 ## 1.9.1 - 2026-07-24
 
 - Added a one-click admin action that copies a Thread’s metadata and complete chronological conversation for debugging or sharing with Codex.

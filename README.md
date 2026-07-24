@@ -12,6 +12,7 @@ Squad owns provider credentials and transport. Liora adds:
 - selectable active provider/model settings;
 - configurable prompt, token, timeout, cache, rate-limit and CTA settings;
 - conversation threads with chronological visitor and Liora messages;
+- context-aware follow-ups that preserve recent visitor constraints and avoid restarting the conversation;
 - optional real-time streamed answers through Squad;
 - browser-only conversation history that visitors explicitly restore;
 - privacy-conscious demand tracking without raw IP addresses;

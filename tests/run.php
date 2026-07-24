@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 191")
-        && str_contains($inputfield, "'version' => 191")
-        && str_contains($process, "'version' => 191"),
+    'release versions' => str_contains($module, "'version' => 192")
+        && str_contains($inputfield, "'version' => 192")
+        && str_contains($process, "'version' => 192"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -59,6 +59,10 @@ $checks = [
     'concise conversation titles' => str_contains($module, 'conversationTitle(')
         && str_contains($store, 'pageBasedThreadTitles')
         && str_contains($javascript, 'titleVersion: 2'),
+    'conversation continuity' => str_contains($module, 'conversationContinuityPrompt()')
+        && str_contains($module, 'Treat a short visitor reply as an answer')
+        && str_contains($module, 'Recent visitor requests and constraints:')
+        && str_contains($module, 'count($visitorTurns) < 3'),
     'editable conversation titles' => str_contains($module, "\$action === 'rename'")
         && str_contains($javascript, "action: 'rename'")
         && str_contains($javascript, 'liora-widget__history-edit-form'),
