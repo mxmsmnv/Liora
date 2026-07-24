@@ -1,6 +1,7 @@
 (function() {
     'use strict';
 
+    function init() {
     var storageKey = 'liora:admin:threads:v1';
     var pageKey = window.location.pathname + window.location.search;
     var articles = Array.prototype.slice.call(document.querySelectorAll('[data-liora-thread]'));
@@ -104,4 +105,11 @@
     document.addEventListener('submit', saveOpenThreads);
     window.addEventListener('pagehide', saveOpenThreads);
     window.addEventListener('beforeunload', saveOpenThreads);
+    }
+
+    if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 }());
