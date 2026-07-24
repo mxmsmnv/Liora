@@ -38,7 +38,7 @@
 .liora-widget__history-item strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .liora-widget__history-item span { flex:none; color:#78716c; font-size:.7rem; }
 .liora-widget__messages:empty { display:none; }
-.liora-widget__messages { max-height:var(--liora-messages-max-height); overflow:auto; overscroll-behavior:contain; scroll-behavior:smooth; padding:1rem 1.25rem 0; background:var(--liora-surface-muted); }
+.liora-widget__messages { max-height:var(--liora-messages-max-height); overflow:auto; overflow-anchor:none; overscroll-behavior:contain; scroll-behavior:smooth; padding:1rem 1.25rem 0; background:var(--liora-surface-muted); }
 .liora-widget--expanded { overflow:visible; }
 .liora-widget--expanded .liora-widget__messages { max-height:none; overflow:visible; }
 .liora-message { max-width:var(--liora-message-max-width); margin:0 0 1rem; padding:.75rem 1rem; border-radius:.85rem; white-space:pre-wrap; overflow-wrap:anywhere; scroll-margin-top:1rem; }

@@ -25,15 +25,7 @@
 
     const scrollToMessageStart = (widget, container, item, behavior = 'smooth') => {
         requestAnimationFrame(() => requestAnimationFrame(() => {
-            if(widget.classList.contains('liora-widget--expanded')) {
-                item.scrollIntoView({behavior, block: 'start'});
-                return;
-            }
-            const top = item.getBoundingClientRect().top
-                - container.getBoundingClientRect().top
-                + container.scrollTop
-                - 12;
-            container.scrollTo({top: Math.max(0, top), behavior});
+            item.scrollIntoView({behavior, block: 'start'});
         }));
     };
 
@@ -137,7 +129,6 @@
                     historyPanel.hidden = true;
                     historyButton.setAttribute('aria-expanded', 'false');
                     if(lastMessage) scrollToMessageStart(widget, messages, lastMessage);
-                    input.focus();
                 });
                 historyPanel.append(button);
             });
@@ -261,6 +252,7 @@
                     createdAt: new Date().toISOString(),
                 });
                 persist();
+                if(assistantItem) scrollToMessageStart(widget, messages, assistantItem);
             } catch(error) {
                 if(assistantItem && !assistantText) assistantItem.remove();
                 addMessage(messages, 'error', error.message || 'Connection error. Please try again.');
@@ -268,7 +260,6 @@
                 input.disabled = false;
                 submit.disabled = false;
                 submit.textContent = 'Ask';
-                input.focus();
             }
         });
     };
