@@ -13,7 +13,7 @@
     const inlineMarkdown = value => {
         const links = [];
         const withLinkTokens = String(value).replace(
-            /\[([^\]\n]{1,180})\]\((\/(?!\/)[^\s<>"']{1,500})\)/g,
+            /\[([^\]\n]{1,180})\]\((\/(?!\/)[^)\s<>"']{1,500})\)/g,
             (match, label, url) => {
                 const token = `@@LIORA_INTERNAL_LINK_${links.length}@@`;
                 links.push({token, label, url});
