@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1 - 2026-07-23
+
+- Added per-message deletion to Liora Insights with confirmation and CSRF validation.
+- Added a separate `liora-delete` permission while retaining automatic access for superusers.
+- Recalculate conversation message counts and timestamps after a message is removed.
+
 ## 1.3.0 - 2026-07-23
 
 - Added ProcessWire multi-language fields for every visitor-facing widget text.

@@ -255,6 +255,50 @@ class LioraStore extends Wire {
         return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function deleteMessage(int $messageId): bool {
+        if($messageId < 1) return false;
+        $this->ensureTable();
+        $database = $this->wire('database');
+        $database->beginTransaction();
+        try {
+            $find = $database->prepare(
+                "SELECT thread_id FROM `" . self::MESSAGES . "` WHERE id=:id FOR UPDATE"
+            );
+            $find->execute([':id' => $messageId]);
+            $threadId = (int)$find->fetchColumn();
+            if($threadId < 1) {
+                $database->rollBack();
+                return false;
+            }
+
+            $delete = $database->prepare(
+                "DELETE FROM `" . self::MESSAGES . "` WHERE id=:id AND thread_id=:thread_id"
+            );
+            $delete->execute([':id' => $messageId, ':thread_id' => $threadId]);
+            if($delete->rowCount() !== 1) {
+                $database->rollBack();
+                return false;
+            }
+
+            $update = $database->prepare(
+                "UPDATE `" . self::THREADS . "` t
+                 SET t.message_count=(
+                        SELECT COUNT(*) FROM `" . self::MESSAGES . "` m WHERE m.thread_id=t.id
+                     ),
+                     t.updated_at=COALESCE((
+                        SELECT MAX(m.created_at) FROM `" . self::MESSAGES . "` m WHERE m.thread_id=t.id
+                     ), t.created_at)
+                 WHERE t.id=:thread_id"
+            );
+            $update->execute([':thread_id' => $threadId]);
+            $database->commit();
+            return true;
+        } catch(\Throwable $error) {
+            if($database->inTransaction()) $database->rollBack();
+            throw $error;
+        }
+    }
+
     public function recentThreads(int $limit = 100, string $status = ''): array {
         $this->ensureTable();
         $limit = max(1, min(300, $limit));

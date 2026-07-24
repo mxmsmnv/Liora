@@ -8,20 +8,24 @@ class ProcessLiora extends Process {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 130,
+            'version' => 131,
             'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',
             'requires' => ['Liora'],
             'permission' => 'liora-review',
-            'permissions' => ['liora-review' => 'Review Liora visitor conversations'],
+            'permissions' => [
+                'liora-review' => 'Review Liora visitor conversations',
+                'liora-delete' => 'Delete individual Liora messages',
+            ],
             'page' => ['name' => 'liora', 'parent' => 'setup', 'title' => 'Liora Insights'],
         ];
     }
 
     public function init(): void {
         parent::init();
-        $url = $this->wire('config')->urls->siteModules . 'Liora/assets/liora-admin.css?v=120';
+        $url = $this->wire('config')->urls->siteModules . 'Liora/assets/liora-admin.css?v='
+            . self::getModuleInfo()['version'];
         $this->wire('config')->styles->add($url);
     }
 
@@ -43,6 +47,17 @@ class ProcessLiora extends Process {
             $status = $san->pageName((string)$input->post('status'));
             if($store->updateStatus($id, $status)) $this->message($this->_('Conversation status updated.'));
             else $this->error($this->_('Could not update the conversation.'));
+            $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
+        }
+
+        if($input->post('action') === 'delete_message') {
+            $session->CSRF->validate();
+            if(!$this->canDeleteMessages()) {
+                throw new WirePermissionException($this->_('You do not have permission to delete Liora messages.'));
+            }
+            $messageId = (int)$input->post('message_id');
+            if($store->deleteMessage($messageId)) $this->message($this->_('Message deleted.'));
+            else $this->error($this->_('The message could not be deleted.'));
             $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
         }
 
@@ -172,6 +187,12 @@ class ProcessLiora extends Process {
 
     protected function renderMessages(array $messages): string {
         $san = $this->wire('sanitizer');
+        $csrf = $this->wire('session')->CSRF->renderInput();
+        $canDelete = $this->canDeleteMessages();
+        $confirmation = $san->entities(json_encode(
+            $this->_('Delete this message permanently?'),
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        ));
         $out = "<div class='liora-admin-messages'>";
         foreach($messages as $message) {
             $role = in_array($message['role'], ['user', 'assistant', 'error'], true)
@@ -183,16 +204,31 @@ class ProcessLiora extends Process {
             $content = $san->entities((string)$message['content']);
             $model = trim((string)$message['provider'] . ' / ' . (string)$message['model'], ' /');
             $meta = $san->entities((string)$message['created_at'] . ($model !== '' ? ' · ' . $model : ''));
+            $delete = '';
+            if($canDelete) {
+                $delete = "<form method='post' class='liora-admin-message__delete' onsubmit=\"return confirm({$confirmation})\">"
+                    . $csrf
+                    . "<input type='hidden' name='action' value='delete_message'>"
+                    . "<input type='hidden' name='message_id' value='" . (int)$message['id'] . "'>"
+                    . "<button type='submit' class='uk-button uk-button-text uk-text-danger' title='"
+                    . $san->entities($this->_('Delete message')) . "'><i class='fa fa-trash' aria-hidden='true'></i> "
+                    . $san->entities($this->_('Delete')) . '</button></form>';
+            }
             if($role === 'assistant') {
                 $out .= "<blockquote class='liora-admin-message liora-admin-message--assistant'>"
-                    . "<div class='liora-admin-message__meta'>{$label} · {$meta}</div>"
+                    . "<div class='liora-admin-message__header'><div class='liora-admin-message__meta'>{$label} · {$meta}</div>{$delete}</div>"
                     . "<pre><code>{$content}</code></pre></blockquote>";
             } else {
                 $out .= "<div class='liora-admin-message liora-admin-message--{$role}'>"
-                    . "<div class='liora-admin-message__meta'>{$label} · {$meta}</div>"
+                    . "<div class='liora-admin-message__header'><div class='liora-admin-message__meta'>{$label} · {$meta}</div>{$delete}</div>"
                     . "<div class='liora-admin-message__content'>{$content}</div></div>";
             }
         }
         return $out . '</div>';
+    }
+
+    protected function canDeleteMessages(): bool {
+        $user = $this->wire('user');
+        return $user->isSuperuser() || $user->hasPermission('liora-delete');
     }
 }

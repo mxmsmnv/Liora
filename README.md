@@ -19,6 +19,7 @@ Squad owns provider credentials and transport. Liora adds:
 - an editable, friendly quality-review notice below the widget;
 - native ProcessWire multi-language widget text with ready-made language presets;
 - a **Setup → Liora Insights** review dashboard;
+- permission-controlled deletion of individual stored messages from Liora Insights;
 - import of the legacy `ai` ProFields Table history.
 
 ## Template API
@@ -47,6 +48,11 @@ $text = $liora->complete('Explain the difference between Cognac and Armagnac.');
 ```
 
 Never store provider credentials in Liora. Configure them in Squad.
+
+Superusers can delete individual messages in **Setup → Liora Insights**.
+Non-superusers need both `liora-review` to open the dashboard and
+`liora-delete` to see and use the delete action. Deletion is a server-side,
+permanent operation protected by ProcessWire CSRF validation.
 
 ## Localization
 

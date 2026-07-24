@@ -48,6 +48,22 @@
     font-size: .78rem;
     font-weight: 600;
 }
+.liora-admin-message__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.liora-admin-message__delete {
+    flex: 0 0 auto;
+    margin: 0;
+}
+.liora-admin-message__delete .uk-button {
+    min-height: 0;
+    padding: 0;
+    font-size: .78rem;
+    line-height: 1.4;
+}
 .liora-admin-message__content {
     margin-top: .45rem;
     white-space: pre-wrap;
