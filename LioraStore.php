@@ -166,6 +166,40 @@ class LioraStore extends Wire {
         return (array)($stmt->fetch(\PDO::FETCH_ASSOC) ?: []);
     }
 
+    /** Threads whose legacy title was copied from the shared source page. */
+    public function pageBasedThreadTitles(int $limit = 10000): array {
+        $this->ensureTable();
+        $limit = max(1, min(10000, $limit));
+        $stmt = $this->wire('database')->query(
+            "SELECT t.id, first_message.content AS question
+             FROM `" . self::THREADS . "` t
+             JOIN (
+                SELECT thread_id, MIN(id) AS first_message_id
+                FROM `" . self::MESSAGES . "`
+                WHERE role='user'
+                GROUP BY thread_id
+             ) first_user ON first_user.thread_id=t.id
+             JOIN `" . self::MESSAGES . "` first_message
+                ON first_message.id=first_user.first_message_id
+             WHERE t.page_title<>'' AND t.title=t.page_title
+             ORDER BY t.id
+             LIMIT {$limit}"
+        );
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function updateThreadTitle(int $threadId, string $title): bool {
+        $title = trim($title);
+        if($threadId < 1 || $title === '') return false;
+        $stmt = $this->wire('database')->prepare(
+            "UPDATE `" . self::THREADS . "` SET title=:title WHERE id=:id"
+        );
+        return $stmt->execute([
+            ':title' => mb_substr($title, 0, 255),
+            ':id' => $threadId,
+        ]);
+    }
+
     public function addMessage(int $threadId, string $role, string $content, array $meta = []): int {
         $this->ensureTable();
         if($threadId < 1 || trim($content) === '') return 0;

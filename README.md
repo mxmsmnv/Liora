@@ -73,6 +73,10 @@ Local history is not loaded into the widget automatically. The visitor uses
 **Previous conversations** to choose a browser-stored thread. It can be disabled
 and its retention limit can be configured in the Liora module settings.
 
+Conversation labels come from the first visitor question, shortened at a word
+boundary. They do not reuse the shared source-page title or require a second AI
+provider request. Older LocalStorage labels are updated when history opens.
+
 An optional welcome message appears only before the first question. It is not
 added to the conversation, stored in LocalStorage or sent to the AI.
 

@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.2.0
+ * @version 1.2.1
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 120,
+            'version' => 121,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -41,6 +41,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $this->store()->ensureTable();
         $this->store()->migrateLegacyQueries();
         if((int)($this->store()->summary()['total'] ?? 0) === 0) $this->importLegacyHistory();
+        if((int)$fromVersion < 121) $this->refreshPageBasedThreadTitles();
     }
 
     public function ___uninstall(): void {
@@ -262,7 +263,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $geo = $this->geoData();
             $thread = $this->store()->createThread([
                 'public_id' => $requestedThreadId,
-                'title' => $originalQuery !== '' ? $originalQuery : mb_substr($question, 0, 120),
+                'title' => $this->conversationTitle($question),
                 'original_query' => $originalQuery,
                 'context' => $context,
                 'source_url' => $pageContext['source_url'],
@@ -338,6 +339,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'success' => true,
             'response' => $answer,
             'thread_id' => $thread['public_id'],
+            'thread_title' => (string)$thread['title'],
             'model' => (string)($data['model'] ?? $this->getModel()),
             'tokens_used' => (int)($data['usage']['total_tokens'] ?? 0),
             'cached' => !empty($data['cached']),
@@ -360,7 +362,10 @@ class Liora extends WireData implements Module, ConfigurableModule {
         ignore_user_abort(true);
         while(ob_get_level() > 0) @ob_end_flush();
 
-        $this->sendStreamEvent('thread', ['thread_id' => $thread['public_id']]);
+        $this->sendStreamEvent('thread', [
+            'thread_id' => $thread['public_id'],
+            'thread_title' => (string)$thread['title'],
+        ]);
         $result = $this->streamChat($messages, function(string $delta): void {
             $this->sendStreamEvent('delta', ['content' => $delta]);
         }, ['pageId' => $pageContext['page_id']]);
@@ -746,7 +751,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             if($thread) continue;
             $thread = $this->store()->createThread([
                 'public_id' => $publicId,
-                'title' => $original !== '' ? $original : mb_substr($question, 0, 120),
+                'title' => $this->conversationTitle($question),
                 'original_query' => $original,
                 'context' => 'legacy-field-ai',
                 'source_url' => '/agent/',
@@ -765,6 +770,39 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $count++;
         }
         return $count;
+    }
+
+    /**
+     * Build a useful label without another provider request.
+     *
+     * The first visitor question identifies a conversation better than the
+     * source-page title shared by every thread launched from that page.
+     */
+    protected function conversationTitle(string $question, int $maxLength = 72): string {
+        $title = trim((string)preg_replace('/\s+/u', ' ', strip_tags($question)));
+        if($title === '') return $this->_('Conversation');
+        $maxLength = max(24, min(120, $maxLength));
+        if(mb_strlen($title) <= $maxLength) return $title;
+        $short = rtrim(mb_substr($title, 0, $maxLength - 1));
+        $lastSpace = mb_strrpos($short, ' ');
+        if($lastSpace !== false && $lastSpace >= (int)floor($maxLength * 0.6)) {
+            $short = rtrim(mb_substr($short, 0, $lastSpace));
+        }
+        return rtrim($short, " \t\n\r\0\x0B.,;:!?—–-") . '…';
+    }
+
+    /** Replace legacy page-name labels with titles based on first questions. */
+    protected function refreshPageBasedThreadTitles(): int {
+        $updated = 0;
+        foreach($this->store()->pageBasedThreadTitles() as $thread) {
+            if($this->store()->updateThreadTitle(
+                (int)$thread['id'],
+                $this->conversationTitle((string)$thread['question'])
+            )) {
+                $updated++;
+            }
+        }
+        return $updated;
     }
 
     protected function sessionHash(): string {

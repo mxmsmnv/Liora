@@ -94,6 +94,17 @@
         }
     };
 
+    const conversationTitle = value => {
+        const title = String(value || '').replace(/\s+/g, ' ').trim();
+        if(!title) return 'Conversation';
+        const maxLength = 72;
+        if(title.length <= maxLength) return title;
+        let short = title.slice(0, maxLength - 1).trimEnd();
+        const lastSpace = short.lastIndexOf(' ');
+        if(lastSpace >= Math.floor(maxLength * 0.6)) short = short.slice(0, lastSpace);
+        return `${short.replace(/[.,;:!?—–-]+$/u, '')}…`;
+    };
+
     const initialize = widget => {
         if(widget.dataset.lioraReady === '1') return;
         widget.dataset.lioraReady = '1';
@@ -124,6 +135,7 @@
         const freshThread = () => ({
             id: newId(),
             title: '',
+            titleVersion: 2,
             sourceUrl: location.pathname + location.search,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -142,6 +154,15 @@
         const renderHistory = () => {
             if(!localHistory || !toolbar || !historyButton || !historyPanel) return;
             const threads = readThreads().slice(0, historyLimit);
+            let migratedTitles = false;
+            threads.forEach(thread => {
+                if(Number(thread.titleVersion || 0) >= 2) return;
+                const firstQuestion = thread.messages.find(message => message.role === 'user')?.content || '';
+                thread.title = conversationTitle(firstQuestion);
+                thread.titleVersion = 2;
+                migratedTitles = true;
+            });
+            if(migratedTitles) writeThreads(threads, historyLimit);
             toolbar.hidden = false;
             historyButton.textContent = threads.length
                 ? `Previous conversations (${threads.length})`
@@ -209,7 +230,7 @@
             const question = input.value.trim();
             if(!question || input.disabled) return;
             if(!currentThread) currentThread = freshThread();
-            if(!currentThread.title) currentThread.title = widget.dataset.originalQuery || question;
+            if(!currentThread.title) currentThread.title = conversationTitle(question);
             const priorHistory = currentThread.messages
                 .filter(message => message.role === 'user' || message.role === 'assistant')
                 .map(({role, content}) => ({role, content}));
@@ -266,7 +287,10 @@
                         for(const line of lines) {
                             if(!line.trim()) continue;
                             const data = JSON.parse(line);
-                            if(data.type === 'thread' && data.thread_id) currentThread.id = data.thread_id;
+                            if(data.type === 'thread' && data.thread_id) {
+                                currentThread.id = data.thread_id;
+                                if(data.thread_title) currentThread.title = data.thread_title;
+                            }
                             if(data.type === 'delta') {
                                 assistantText += data.content || '';
                                 updateMessage(assistantItem, assistantText);
@@ -286,6 +310,7 @@
                         throw new Error(data.error || 'Liora could not answer right now.');
                     }
                     if(data.thread_id) currentThread.id = data.thread_id;
+                    if(data.thread_title) currentThread.title = data.thread_title;
                     if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
                     assistantText = data.response || '';
                     assistantItem = addMessage(messages, 'assistant', assistantText, 'none');

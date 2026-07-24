@@ -29,9 +29,9 @@ $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 120")
-        && str_contains($inputfield, "'version' => 120")
-        && str_contains($process, "'version' => 120"),
+    'release versions' => str_contains($module, "'version' => 121")
+        && str_contains($inputfield, "'version' => 121")
+        && str_contains($process, "'version' => 121"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -40,6 +40,9 @@ $checks = [
     'GeoIP enrichment' => str_contains($module, "isInstalled('GeoIP')") && !str_contains($store, '`ip_address`'),
     'streaming endpoint' => str_contains($module, 'application/x-ndjson') && str_contains($module, 'streamChat('),
     'local conversation history' => str_contains($javascript, 'localStorage') && str_contains($javascript, 'Previous conversations'),
+    'concise conversation titles' => str_contains($module, 'conversationTitle(')
+        && str_contains($store, 'pageBasedThreadTitles')
+        && str_contains($javascript, 'titleVersion: 2'),
     'long answer usability' => str_contains($javascript, 'scrollToMessageStart') && str_contains($javascript, 'liora-widget--expanded'),
     'JSON widget theme' => is_array($theme) && !empty($theme['variables']['messagesMaxHeight'])
         && str_contains($module, 'themeStyle('),

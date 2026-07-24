@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 - 2026-07-23
+
+- Named conversations from the first visitor question instead of the shared source-page title.
+- Added concise word-boundary truncation without an extra AI provider request.
+- Migrated legacy page-based server titles on upgrade and old LocalStorage titles when history is opened.
+
 ## 1.2.0 - 2026-07-23
 
 - Added a configurable welcome message for empty conversations, with a separate enable/disable setting.
