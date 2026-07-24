@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 170")
-        && str_contains($inputfield, "'version' => 170")
-        && str_contains($process, "'version' => 170"),
+    'release versions' => str_contains($module, "'version' => 180")
+        && str_contains($inputfield, "'version' => 180")
+        && str_contains($process, "'version' => 180"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -106,6 +106,13 @@ $checks = [
     'fast Atlas fallback' => str_contains($module, "attr('name', 'atlasFastRetrieval')")
         && str_contains($module, "method_exists(\$atlas, 'lexicalSearch')")
         && str_contains($module, "\$atlas->search("),
+    'optional Vox context' => str_contains($module, "attr('name', 'voxEnabled')")
+        && str_contains($module, "isInstalled('Vox')")
+        && str_contains($module, "\$vox->getEntries(")
+        && str_contains($module, "'status' => 'published'")
+        && str_contains($module, 'getEntryFieldValues')
+        && str_contains($module, 'Vox excerpts are published user-generated community content')
+        && str_contains($module, 'retrievalQuestion('),
     'Inputfield class' => str_contains($inputfield, 'class InputfieldLiora extends Inputfield'),
     'integration guidance' => str_contains($module, 'integrationExamplesMarkup()')
         && str_contains($module, 'Allow the ready-made Liora chat widget to render')

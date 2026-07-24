@@ -18,6 +18,7 @@ Squad owns provider credentials and transport. Liora adds:
 - optional country and city enrichment when the GeoIP module is installed;
 - configurable welcome copy for an otherwise empty conversation;
 - optional lexical-first, semantic-fallback answers from a selected Atlas collection;
+- optional published reviews, questions, replies and discussions from Vox;
 - an editable, friendly quality-review notice below the widget;
 - native ProcessWire multi-language widget text with ready-made language presets;
 - a **Setup → Liora Insights** review dashboard;
@@ -125,6 +126,24 @@ with the regular non-RAG answer. Retrieved entries linked to ProcessWire pages
 are re-resolved and excluded unless the current page is public.
 Entries without a ProcessWire page ID must carry explicit `public: true`
 metadata before Liora will use them.
+
+## Optional Vox community context
+
+When Vox is installed, **Vox community** is enabled by default in Liora
+settings. Liora reads only published entries attached to the current public
+page or a public page retrieved through Atlas. Reviews can include their stored
+rating and recommendation flag; questions, replies and discussions are clearly
+labelled as user-generated community content.
+
+Pending and spam entries, guest email addresses, fingerprints, IP data, photos
+and other private fields are never sent to Squad. Liora is instructed to
+distinguish individual opinions from consensus and not invent ratings or
+reviews. When the referenced page has no published Vox content, it says so
+instead of claiming that Liora does not support reviews.
+
+Short follow-up questions such as “what do people think about it?” include the
+preceding visitor question in retrieval, allowing Atlas to resolve the product
+page before Liora checks Vox.
 
 ## Conversation model
 

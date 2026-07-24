@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0 - 2026-07-24
+
+- Added optional Vox context from published reviews, questions, replies and discussions on the current or Atlas-retrieved public page.
+- Added Vox entry-count and context-size controls, with community retrieval enabled by default when Vox is installed.
+- Included stored review ratings and recommendation flags while excluding private Vox fields.
+- Labelled Vox excerpts as untrusted user-generated opinions and prevented Liora from presenting individual comments as editorial facts or broad consensus.
+- Added preceding-question context to retrieval so short follow-ups such as “what reviews does it have?” can resolve the referenced product.
+
 ## 1.7.0 - 2026-07-24
 
 - Added low-latency lexical-first Atlas retrieval with automatic semantic fallback when local matches are insufficient.
