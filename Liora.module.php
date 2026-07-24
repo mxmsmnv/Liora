@@ -279,7 +279,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $this->importClientHistory((int)$thread['id'], (array)($input['history'] ?? []), $pageContext);
         }
 
-        $historyRows = $this->store()->messages(
+        $historyRows = $this->store()->threadMessages(
             (int)$thread['id'],
             max(2, (int)$this->setting('historyMessages', 10))
         );

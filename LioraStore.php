@@ -207,7 +207,7 @@ class LioraStore extends Wire {
         return $messageId;
     }
 
-    public function messages(int $threadId, int $limit = 40): array {
+    public function threadMessages(int $threadId, int $limit = 40): array {
         $this->ensureTable();
         $limit = max(1, min(200, $limit));
         $stmt = $this->wire('database')->prepare(
