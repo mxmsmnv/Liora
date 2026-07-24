@@ -181,7 +181,8 @@ class LioraStore extends Wire {
              ) first_user ON first_user.thread_id=t.id
              JOIN `" . self::MESSAGES . "` first_message
                 ON first_message.id=first_user.first_message_id
-             WHERE t.page_title<>'' AND t.title=t.page_title
+             WHERE (t.page_title<>'' AND t.title=t.page_title)
+                OR LOWER(TRIM(t.title)) IN ('ask liora ai', 'ask liora')
              ORDER BY t.id
              LIMIT {$limit}"
         );
