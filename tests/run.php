@@ -38,9 +38,13 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 194")
-        && str_contains($inputfield, "'version' => 194")
-        && str_contains($process, "'version' => 194"),
+    'release versions' => str_contains($module, "'version' => 195")
+        && str_contains($inputfield, "'version' => 195")
+        && str_contains($process, "'version' => 195"),
+    'config preview is not a nested form' => str_contains($module, "\$preview->previewOnly = true")
+        && str_contains($module, "\$previewOnly = !empty(\$options['preview'])")
+        && str_contains($module, "<div class='liora-widget__form'")
+        && str_contains($inputfield, "'preview' => (bool)\$this->previewOnly"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),

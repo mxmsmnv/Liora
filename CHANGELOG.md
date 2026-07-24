@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.5 - 2026-07-24
+
+- Rendered the module-settings preview as a static, non-form widget so its
+  empty question field can no longer block configuration saves with browser
+  validation.
+- Kept normal frontend widgets interactive and unchanged.
+
 ## 1.9.4 - 2026-07-24
 
 - Added an optional live web-search setting with a configurable 1–10 result

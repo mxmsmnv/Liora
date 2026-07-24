@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.9.4
+ * @version 1.9.5
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 194,
+            'version' => 195,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -497,6 +497,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $id = 'liora-' . substr(hash('sha256', microtime(true) . random_int(1, PHP_INT_MAX)), 0, 12);
         $themeCss = $this->themeCss($theme, $id);
         $compact = !empty($options['compact']) ? ' liora-widget--compact' : '';
+        $previewOnly = !empty($options['preview']);
         $assets = '';
 
         if(!self::$assetsRendered) {
@@ -556,6 +557,21 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $suggestions .= '</div>';
         }
 
+        $composer = $previewOnly
+            ? "<div class='liora-widget__form' aria-label='" . $san->entities($this->widgetText('widgetAskLiora')) . "'>"
+                . "<label class='liora-sr-only' for='{$id}-question'>" . $san->entities($this->widgetText('widgetAskLiora')) . "</label>"
+                . "<input id='{$id}-question' type='text' value='' readonly tabindex='-1' placeholder='"
+                . $san->entities($placeholder) . "'>"
+                . "<button type='button' tabindex='-1'>" . $san->entities($this->widgetText('widgetAsk')) . "</button>"
+                . "</div>"
+            : "<form class='liora-widget__form' data-liora-form>"
+                . "<label class='liora-sr-only' for='{$id}-question'>" . $san->entities($this->widgetText('widgetAskLiora')) . "</label>"
+                . "<input id='{$id}-question' data-liora-input type='text' maxlength='"
+                . (int)$this->setting('maxQuestionLength', 1000) . "' autocomplete='off' placeholder='"
+                . $san->entities($placeholder) . "' required>"
+                . "<button type='submit' data-liora-submit>" . $san->entities($this->widgetText('widgetAsk')) . "</button>"
+                . "</form>";
+
         return $assets . $themeCss
             . "<section id='{$id}' class='liora-widget{$compact}'{$dataAttrs}>"
             . "<div class='liora-widget__header'><span class='liora-widget__icon' aria-hidden='true'>✦</span>"
@@ -567,13 +583,8 @@ class Liora extends WireData implements Module, ConfigurableModule {
             . "<div class='liora-widget__history' data-liora-history-panel hidden></div>"
             . "<div class='liora-widget__messages' data-liora-messages aria-live='polite'></div>"
             . $suggestions
-            . "<form class='liora-widget__form' data-liora-form>"
-            . "<label class='liora-sr-only' for='{$id}-question'>" . $san->entities($this->widgetText('widgetAskLiora')) . "</label>"
-            . "<input id='{$id}-question' data-liora-input type='text' maxlength='"
-            . (int)$this->setting('maxQuestionLength', 1000) . "' autocomplete='off' placeholder='"
-            . $san->entities($placeholder) . "' required>"
-            . "<button type='submit' data-liora-submit>" . $san->entities($this->widgetText('widgetAsk')) . "</button>"
-            . "</form><div class='liora-widget__notes'><p>" . $san->entities($this->widgetText('widgetAiDisclaimer')) . '</p>'
+            . $composer
+            . "<div class='liora-widget__notes'><p>" . $san->entities($this->widgetText('widgetAiDisclaimer')) . '</p>'
             . ((bool)$this->setting('showPrivacyNotice', true) && $privacyNotice !== ''
                 ? "<p class='liora-widget__privacy'>" . $san->entities($privacyNotice) . '</p>'
                 : '')
@@ -866,6 +877,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $preview->attr('name', 'lioraPreview');
             $preview->label = $this->_('Preview');
             $preview->value = $this->_('a bottle, cocktail or pairing');
+            $preview->previewOnly = true;
             $preview->collapsed = Inputfield::collapsedYes;
             $fieldset->add($preview);
         }
