@@ -72,6 +72,8 @@ $checks = [
     'safe structured answer rendering' => str_contains($javascript, 'const inlineMarkdown')
         && str_contains($javascript, 'const safeMarkdown')
         && str_contains($javascript, 'liora-message__citation')
+        && str_contains($javascript, 'LIORA_INTERNAL_LINK_')
+        && str_contains($javascript, 'liora-message__link')
         && str_contains($javascript, 'escapeHtml(codeLines')
         && str_contains($widgetCss, 'width:fit-content')
         && str_contains($widgetCss, '.liora-message__content h3'),

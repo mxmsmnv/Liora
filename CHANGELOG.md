@@ -5,6 +5,7 @@
 - Made short visitor messages render as compact content-sized bubbles.
 - Added safe structured Markdown rendering for headings, paragraphs, lists and code.
 - Styled numbered Atlas citations and matched them to the rendered source list.
+- Rendered validated same-site Markdown links while leaving external links inert.
 - Hardened widget sizing against surrounding-site box-model and overflow rules.
 
 ## 1.6.0 - 2026-07-24

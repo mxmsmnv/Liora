@@ -11,13 +11,28 @@
         .replaceAll("'", '&#039;');
 
     const inlineMarkdown = value => {
-        let html = escapeHtml(value);
+        const links = [];
+        const withLinkTokens = String(value).replace(
+            /\[([^\]\n]{1,180})\]\((\/(?!\/)[^\s<>"']{1,500})\)/g,
+            (match, label, url) => {
+                const token = `@@LIORA_INTERNAL_LINK_${links.length}@@`;
+                links.push({token, label, url});
+                return token;
+            }
+        );
+        let html = escapeHtml(withLinkTokens);
         html = html.replace(/`([^`]+?)`/g, '<code>$1</code>');
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(
             /\[Source\s+(\d+)\]/gi,
             '<sup class="liora-message__citation" aria-label="Source $1">[$1]</sup>'
         );
+        links.forEach(link => {
+            html = html.replaceAll(
+                link.token,
+                `<a class="liora-message__link" href="${escapeHtml(link.url)}">${escapeHtml(link.label)}</a>`
+            );
+        });
         return html;
     };
 
