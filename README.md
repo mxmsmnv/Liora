@@ -11,6 +11,9 @@ Liora does not own provider credentials or low-level AI transport. Those remain
 in [Squad](https://github.com/mxmsmnv/Squad). Liora adds the conversation,
 retrieval, frontend, privacy and editorial-review layers around Squad.
 
+See [ROADMAP.md](ROADMAP.md) for the community-oriented product direction,
+extension principles and planned demand-to-editorial workflow.
+
 ## What Liora includes
 
 - a reusable frontend chat widget and `InputfieldLiora`;
@@ -501,6 +504,7 @@ assets/liora-admin.js        Insights interactions
 assets/liora-admin.css       Insights presentation
 themes/*.json                Validated widget design tokens
 docs/INTEGRATION.md          Complete integration examples
+ROADMAP.md                   Community product direction and delivery phases
 tests/run.php                Repository smoke tests
 ```
 

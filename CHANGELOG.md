@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added a community-oriented roadmap for answer feedback, demand clustering,
+  editorial tasks, structured results, quality controls, privacy lifecycle,
+  adaptive routing and reporting.
+- Defined portability rules that keep LQRS-specific data models and integrations
+  outside the reusable Liora core.
+
 ## 1.9.5 - 2026-07-24
 
 - Rendered the module-settings preview as a static, non-form widget so its
