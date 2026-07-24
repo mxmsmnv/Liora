@@ -24,6 +24,20 @@ Squad owns provider credentials and transport. Liora adds:
 
 ## Template API
 
+Liora can be integrated in four ways:
+
+| Mode | UI included | Creates Insights Threads | Use when |
+| --- | --- | --- | --- |
+| `renderWidget()` | Yes | Yes | A page needs the complete ready-made conversation experience |
+| `InputfieldLiora` | Yes | Yes | A ProcessWire form should own the widget placement |
+| JSON endpoint | No | Yes | A custom frontend should retain context, Atlas sources and analytics |
+| `ask()` / `chat()` / `complete()` | No | No | Server-side code needs an AI result without a visitor chat |
+
+The **Allow the ready-made Liora chat widget to render** setting controls
+`renderWidget()` and `InputfieldLiora` only. It does not disable Liora Insights
+or the PHP service API. Enabling it does not inject anything automatically; the
+template still decides where the widget appears.
+
 ```php
 $liora = $modules->get('Liora');
 
@@ -46,6 +60,14 @@ Direct application calls remain available:
 $result = $liora->ask('Suggest a food pairing.');
 $text = $liora->complete('Explain the difference between Cognac and Armagnac.');
 ```
+
+Direct PHP calls do not create a visitor Thread. Use the JSON endpoint when a
+custom interface should preserve the conversation, page attribution, GeoIP
+metadata, Atlas sources and Insights analytics.
+
+See [docs/INTEGRATION.md](docs/INTEGRATION.md) for complete, copy-ready
+examples, including `InputfieldLiora` and a custom frontend without the
+ready-made widget.
 
 Never store provider credentials in Liora. Configure them in Squad.
 

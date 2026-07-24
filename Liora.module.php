@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.5.0
+ * @version 1.5.1
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 150,
+            'version' => 151,
             'summary' => 'AI answer CTA with optional Atlas RAG and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -680,8 +680,18 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
         $field = $modules->get('InputfieldCheckbox');
         $field->attr('name', 'widgetEnabled');
-        $field->label = $this->_('Enable the Liora widget');
+        $field->label = $this->_('Allow the ready-made Liora chat widget to render');
+        $field->description = $this->_(
+            'This option does not insert Liora automatically. A template must call renderWidget() or render InputfieldLiora. '
+            . 'Turn it off when using only ask(), chat(), complete(), or a custom integration; Liora Insights remains available.'
+        );
         if((bool)$this->setting('widgetEnabled', true)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldMarkup');
+        $field->attr('name', 'integrationExamples');
+        $field->label = $this->_('How to add Liora');
+        $field->value = $this->integrationExamplesMarkup();
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldCheckbox');
@@ -1179,6 +1189,51 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $options[$key] = trim((string)($data['name'] ?? '')) ?: ucfirst($key);
         }
         return $options ?: ['default' => 'Liora default'];
+    }
+
+    protected function integrationExamplesMarkup(): string {
+        $san = $this->wire('sanitizer');
+        $widgetExample = <<<'PHP'
+<?php
+$liora = $modules->get('Liora');
+echo $liora->renderWidget([
+    'originalQuery' => $searchQuery ?? '',
+    'context' => $page->template->name,
+    'sourceUrl' => $page->url,
+    'pageId' => $page->id,
+]);
+PHP;
+        $serverExample = <<<'PHP'
+<?php
+$result = $modules->get('Liora')->ask('Suggest a food pairing.', [
+    'pageId' => $page->id,
+]);
+
+if($result['success']) {
+    echo $sanitizer->entities($result['content']);
+}
+PHP;
+        $docsUrl = 'https://github.com/mxmsmnv/Liora/blob/main/docs/INTEGRATION.md';
+
+        return "<div class='liora-integration-help'>"
+            . '<p>' . $this->_('Choose the integration that matches the page:') . '</p>'
+            . '<ul>'
+            . '<li><strong>' . $this->_('Ready-made chat:') . '</strong> '
+            . $this->_('render the complete conversation UI, LocalStorage history, streaming and tracked Threads.') . '</li>'
+            . '<li><strong>' . $this->_('Inputfield:') . '</strong> '
+            . $this->_('add InputfieldLiora to a ProcessWire form or admin preview.') . '</li>'
+            . '<li><strong>' . $this->_('Server API without a widget:') . '</strong> '
+            . $this->_('call ask(), chat(), complete(), or streamChat() from PHP. Direct calls do not create Insights Threads.') . '</li>'
+            . '<li><strong>' . $this->_('Custom frontend:') . '</strong> '
+            . $this->_('POST to the configured JSON endpoint to retain Threads, page context, Atlas sources and analytics.') . '</li>'
+            . '</ul>'
+            . '<h4>' . $this->_('Ready-made chat in a template') . '</h4>'
+            . '<pre><code>' . $san->entities($widgetExample) . '</code></pre>'
+            . '<h4>' . $this->_('Server-side call without chat UI') . '</h4>'
+            . '<pre><code>' . $san->entities($serverExample) . '</code></pre>'
+            . "<p><a class='uk-button uk-button-default uk-button-small' href='{$docsUrl}' target='_blank' "
+            . "rel='noopener noreferrer'><i class='fa fa-book' aria-hidden='true'></i> "
+            . $this->_('Open the complete integration guide') . '</a></p></div>';
     }
 
     protected function themeStyle(string $theme): string {

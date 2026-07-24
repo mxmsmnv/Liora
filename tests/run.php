@@ -10,6 +10,7 @@ $required = [
     'assets/liora-admin.css',
     'assets/liora-admin.js',
     'assets/liora.js',
+    'docs/INTEGRATION.md',
     'themes/default.json',
 ];
 
@@ -31,9 +32,9 @@ $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 150")
-        && str_contains($inputfield, "'version' => 150")
-        && str_contains($process, "'version' => 150"),
+    'release versions' => str_contains($module, "'version' => 151")
+        && str_contains($inputfield, "'version' => 151")
+        && str_contains($process, "'version' => 151"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -78,6 +79,9 @@ $checks = [
         && str_contains($module, "'rag_sources'")
         && str_contains($javascript, 'rag_sources'),
     'Inputfield class' => str_contains($inputfield, 'class InputfieldLiora extends Inputfield'),
+    'integration guidance' => str_contains($module, 'integrationExamplesMarkup()')
+        && str_contains($module, 'Allow the ready-made Liora chat widget to render')
+        && str_contains(file_get_contents($root . '/docs/INTEGRATION.md'), 'Custom frontend without the widget'),
     'Process class' => str_contains($process, 'class ProcessLiora extends Process'),
     'admin thread rendering' => str_contains($process, 'recentThreads') && str_contains($process, '<blockquote'),
     'admin conversation UX' => str_contains($process, 'renderConfigurationNotice(')

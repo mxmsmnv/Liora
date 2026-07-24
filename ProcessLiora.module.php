@@ -8,7 +8,7 @@ class ProcessLiora extends Process {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 150,
+            'version' => 151,
             'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',

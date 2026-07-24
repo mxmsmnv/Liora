@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1 - 2026-07-24
+
+- Clarified that the widget setting controls the ready-made chat UI rather than the whole Liora service.
+- Added integration examples directly to the module settings.
+- Documented ready-made widget, Inputfield, server API and custom frontend integrations.
+- Explained which integration paths create tracked Insights Threads.
+
 ## 1.5.0 - 2026-07-23
 
 - Paginated Liora Insights conversations and limited message loading to the current page.
