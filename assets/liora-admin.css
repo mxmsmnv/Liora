@@ -65,6 +65,14 @@
     min-width: 92px;
     border-radius: 7px;
 }
+.liora-admin-thread__copy {
+    min-width: 126px;
+    border-radius: 7px;
+}
+.liora-admin-thread__copy.is-copied {
+    border-color: #32d296;
+    color: #237a57;
+}
 .liora-admin-thread__toggle i {
     width: 12px;
     margin-right: 5px;
@@ -322,6 +330,7 @@
     .liora-admin-thread__controls {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap;
     }
     .liora-admin-thread__stats { text-align: left; }
     .liora-admin-thread__query { align-items: flex-start; flex-direction: column; gap: 3px; }

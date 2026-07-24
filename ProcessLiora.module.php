@@ -8,7 +8,7 @@ class ProcessLiora extends Process {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 190,
+            'version' => 191,
             'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',
@@ -248,6 +248,7 @@ class ProcessLiora extends Process {
 
             $threadId = (int)$thread['id'];
             $bodyId = 'liora-thread-body-' . $threadId;
+            $contextText = $san->entities($this->threadContextText($thread));
             $out .= "<article id='liora-thread-{$threadId}' data-liora-thread='{$threadId}' "
                 . "class='uk-card uk-card-default uk-card-body uk-margin liora-admin-thread is-collapsed'>"
                 . "<header class='liora-admin-thread__header'><div class='liora-admin-thread__title'>"
@@ -260,11 +261,17 @@ class ProcessLiora extends Process {
                 . $this->_('messages') . '</span>'
                 . ($location !== '' ? "<small><i class='fa fa-map-marker' aria-hidden='true'></i> "
                     . $san->entities($location) . '</small>' : '') . '</div>'
+                . "<button type='button' class='uk-button uk-button-default uk-button-small liora-admin-thread__copy' "
+                . "data-liora-thread-copy data-copy-label='" . $san->entities($this->_('Copy context'))
+                . "' data-copied-label='" . $san->entities($this->_('Copied')) . "'>"
+                . "<i class='fa fa-copy' aria-hidden='true'></i> <span>"
+                . $san->entities($this->_('Copy context')) . '</span></button>'
                 . "<button type='button' class='uk-button uk-button-default uk-button-small liora-admin-thread__toggle' "
                 . "data-liora-thread-toggle aria-expanded='false' aria-controls='{$bodyId}' "
                 . "data-open-label='" . $san->entities($this->_('Open')) . "' data-close-label='"
                 . $san->entities($this->_('Hide')) . "'><i class='fa fa-chevron-down' aria-hidden='true'></i> <span>"
                 . $this->_('Open') . "</span></button></div></header>"
+                . "<textarea data-liora-thread-context hidden>{$contextText}</textarea>"
                 . "<div id='{$bodyId}' class='liora-admin-thread__body' data-liora-thread-body hidden>"
                 . ($original !== '' ? "<div class='liora-admin-thread__query'><span>"
                     . $this->_('Original search') . "</span><strong>{$original}</strong></div>" : '')
@@ -310,6 +317,53 @@ class ProcessLiora extends Process {
                 . '</button></form></footer></div></article>';
         }
         return $out;
+    }
+
+    protected function threadContextText(array $thread): string {
+        $lines = [
+            'Liora conversation #' . (int)($thread['id'] ?? 0),
+            'Title: ' . trim((string)($thread['title'] ?? '')),
+            'Status: ' . trim((string)($thread['status'] ?? '')),
+            'Created: ' . trim((string)($thread['created_at'] ?? '')),
+            'Updated: ' . trim((string)($thread['updated_at'] ?? '')),
+        ];
+        $metadata = [
+            'Original search' => $thread['original_query'] ?? '',
+            'Page context' => $thread['context'] ?? '',
+            'Page title' => $thread['page_title'] ?? '',
+            'Source URL' => $thread['source_url'] ?? '',
+            'Referrer URL' => $thread['referrer_url'] ?? '',
+            'Location' => implode(', ', array_filter([
+                trim((string)($thread['city'] ?? '')),
+                trim((string)($thread['region'] ?? '')),
+                trim((string)($thread['country'] ?? '')),
+            ])),
+        ];
+        foreach($metadata as $label => $value) {
+            $value = trim((string)$value);
+            if($value !== '') $lines[] = $label . ': ' . $value;
+        }
+        $lines[] = '';
+        $lines[] = 'Messages:';
+        foreach((array)($thread['messages'] ?? []) as $message) {
+            $role = match((string)($message['role'] ?? 'user')) {
+                'assistant' => 'LIORA',
+                'error' => 'ERROR',
+                default => 'VISITOR',
+            };
+            $details = array_filter([
+                trim((string)($message['created_at'] ?? '')),
+                trim((string)($message['provider'] ?? '')),
+                trim((string)($message['model'] ?? '')),
+                (int)($message['tokens_total'] ?? 0) > 0
+                    ? (int)$message['tokens_total'] . ' tokens'
+                    : '',
+            ]);
+            $lines[] = '';
+            $lines[] = '[' . implode(' · ', $details) . '] ' . $role;
+            $lines[] = trim((string)($message['content'] ?? ''));
+        }
+        return trim(implode("\n", $lines));
     }
 
     protected function renderMessages(array $messages): string {

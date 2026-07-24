@@ -23,6 +23,7 @@ Squad owns provider credentials and transport. Liora adds:
 - an editable, friendly quality-review notice below the widget;
 - native ProcessWire multi-language widget text with ready-made language presets;
 - a **Setup → Liora Insights** review dashboard;
+- one-click copying of complete Thread context and messages from Liora Insights;
 - permission-controlled deletion of individual stored messages from Liora Insights;
 - import of the legacy `ai` ProFields Table history.
 

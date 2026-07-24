@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.1 - 2026-07-24
+
+- Added a one-click admin action that copies a Thread’s metadata and complete chronological conversation for debugging or sharing with Codex.
+- Made Atlas excerpts supplement reliable general model knowledge instead of forcing an “LQRS has no information” answer when retrieved material is irrelevant.
+- Updated the default stay-on-site prompt to prohibit external destinations without unnecessarily restricting the model to site-only knowledge.
+- Automatically replaces the previous unmodified stay-on-site default at runtime while preserving custom administrator wording.
+
 ## 1.9.0 - 2026-07-24
 
 - Added up to three configurable, localizable starter-question buttons below the empty conversation.

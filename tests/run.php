@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 190")
-        && str_contains($inputfield, "'version' => 190")
-        && str_contains($process, "'version' => 190"),
+    'release versions' => str_contains($module, "'version' => 191")
+        && str_contains($inputfield, "'version' => 191")
+        && str_contains($process, "'version' => 191"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -111,7 +111,8 @@ $checks = [
         && str_contains($javascript, 'rag_sources'),
     'fast Atlas fallback' => str_contains($module, "attr('name', 'atlasFastRetrieval')")
         && str_contains($module, "method_exists(\$atlas, 'lexicalSearch')")
-        && str_contains($module, "\$atlas->search("),
+        && str_contains($module, "\$atlas->search(")
+        && str_contains($module, 'answer from reliable general knowledge instead'),
     'optional Vox context' => str_contains($module, "attr('name', 'voxEnabled')")
         && str_contains($module, "isInstalled('Vox')")
         && str_contains($module, "\$vox->getEntries(")
@@ -137,6 +138,11 @@ $checks = [
         && str_contains($adminJavascript, 'localStorage')
         && str_contains($adminJavascript, 'scrollY')
         && str_contains($adminJavascript, 'topBefore'),
+    'admin conversation copy' => str_contains($process, 'threadContextText(')
+        && str_contains($process, 'data-liora-thread-copy')
+        && str_contains($process, 'data-liora-thread-context')
+        && str_contains($adminJavascript, 'navigator.clipboard.writeText')
+        && str_contains($adminJavascript, 'copyText(context.value'),
     'CSRF validation' => str_contains($process, 'CSRF->validate()'),
     'admin message deletion' => str_contains($store, 'function deleteMessage(')
         && str_contains($process, "post('action') === 'delete_message'")

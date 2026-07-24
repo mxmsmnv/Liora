@@ -65,6 +65,29 @@
         writeState(state);
     }
 
+    function copyText(text) {
+        if(window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function(resolve, reject) {
+            var helper = document.createElement('textarea');
+            helper.value = text;
+            helper.setAttribute('readonly', 'readonly');
+            helper.style.position = 'fixed';
+            helper.style.opacity = '0';
+            document.body.appendChild(helper);
+            helper.select();
+            try {
+                if(!document.execCommand('copy')) throw new Error('Copy command failed');
+                resolve();
+            } catch(error) {
+                reject(error);
+            } finally {
+                helper.remove();
+            }
+        });
+    }
+
     articles.forEach(function(article) {
         var id = String(article.dataset.lioraThread);
         setExpanded(article, pageState.open.indexOf(id) !== -1);
@@ -84,6 +107,24 @@
                 writeState(state);
             });
         });
+
+        var copyButton = article.querySelector('[data-liora-thread-copy]');
+        var context = article.querySelector('[data-liora-thread-context]');
+        if(copyButton && context) {
+            copyButton.addEventListener('click', function() {
+                var label = copyButton.querySelector('span');
+                copyText(context.value || context.textContent || '').then(function() {
+                    if(label) label.textContent = copyButton.dataset.copiedLabel || 'Copied';
+                    copyButton.classList.add('is-copied');
+                    window.setTimeout(function() {
+                        if(label) label.textContent = copyButton.dataset.copyLabel || 'Copy context';
+                        copyButton.classList.remove('is-copied');
+                    }, 1800);
+                }).catch(function() {
+                    if(label) label.textContent = copyButton.dataset.copyLabel || 'Copy context';
+                });
+            });
+        }
     });
 
     if('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
