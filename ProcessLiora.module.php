@@ -8,7 +8,7 @@ class ProcessLiora extends Process {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora Insights',
-            'version' => 132,
+            'version' => 133,
             'summary' => 'Review Liora conversations and turn visitor demand into site content.',
             'author' => 'Maxim Semenov',
             'icon' => 'comments',
@@ -58,6 +58,17 @@ class ProcessLiora extends Process {
             $messageId = (int)$input->post('message_id');
             if($store->deleteMessage($messageId)) $this->message($this->_('Message deleted.'));
             else $this->error($this->_('The message could not be deleted.'));
+            $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
+        }
+
+        if($input->post('action') === 'delete_thread') {
+            $session->CSRF->validate();
+            if(!$this->canDeleteMessages()) {
+                throw new WirePermissionException($this->_('You do not have permission to delete Liora conversations.'));
+            }
+            $threadId = (int)$input->post('thread_id');
+            if($store->deleteThread($threadId)) $this->message($this->_('Conversation and all its messages deleted.'));
+            else $this->error($this->_('The conversation could not be deleted.'));
             $session->redirect('./' . ($input->get('status') ? '?status=' . urlencode((string)$input->get('status')) : ''));
         }
 
@@ -206,7 +217,23 @@ class ProcessLiora extends Process {
             }
             if($source !== '' || $referrer !== '') $out .= '</div>';
 
-            $out .= "<footer class='liora-admin-thread__footer'><form method='post' class='uk-flex uk-flex-middle liora-admin-status'>{$csrf}"
+            $deleteThread = '';
+            if($this->canDeleteMessages()) {
+                $confirmation = $san->entities(json_encode(
+                    $this->_('Delete this conversation and all its messages permanently?'),
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ));
+                $deleteThread = "<form method='post' class='liora-admin-thread__delete' onsubmit=\"return confirm({$confirmation})\">"
+                    . $csrf
+                    . "<input type='hidden' name='action' value='delete_thread'>"
+                    . "<input type='hidden' name='thread_id' value='" . (int)$thread['id'] . "'>"
+                    . "<button type='submit' class='uk-button uk-button-text uk-text-danger'>"
+                    . "<i class='fa fa-trash' aria-hidden='true'></i> "
+                    . $san->entities($this->_('Delete conversation')) . '</button></form>';
+            }
+
+            $out .= "<footer class='liora-admin-thread__footer'>{$deleteThread}"
+                . "<form method='post' class='uk-flex uk-flex-middle liora-admin-status'>{$csrf}"
                 . "<input type='hidden' name='action' value='status'><input type='hidden' name='id' value='" . (int)$thread['id'] . "'>"
                 . "<select name='status' class='uk-select uk-form-width-medium'>";
             foreach(LioraStore::statuses() as $status) {

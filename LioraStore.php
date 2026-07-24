@@ -299,6 +299,16 @@ class LioraStore extends Wire {
         }
     }
 
+    public function deleteThread(int $threadId): bool {
+        if($threadId < 1) return false;
+        $this->ensureTable();
+        $stmt = $this->wire('database')->prepare(
+            "DELETE FROM `" . self::THREADS . "` WHERE id=:id"
+        );
+        $stmt->execute([':id' => $threadId]);
+        return $stmt->rowCount() === 1;
+    }
+
     public function recentThreads(int $limit = 100, string $status = ''): array {
         $this->ensureTable();
         $limit = max(1, min(300, $limit));

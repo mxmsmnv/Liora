@@ -29,9 +29,9 @@ $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 132")
-        && str_contains($inputfield, "'version' => 132")
-        && str_contains($process, "'version' => 132"),
+    'release versions' => str_contains($module, "'version' => 133")
+        && str_contains($inputfield, "'version' => 133")
+        && str_contains($process, "'version' => 133"),
     'Squad dependency' => str_contains($module, "'Squad'"),
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
@@ -74,6 +74,10 @@ $checks = [
         && str_contains($process, "hasPermission('liora-delete')")
         && str_contains($process, "name='message_id'")
         && str_contains($module, 'ensurePermissions()'),
+    'admin thread deletion' => str_contains($store, 'function deleteThread(')
+        && str_contains($process, "post('action') === 'delete_thread'")
+        && str_contains($process, "name='thread_id'")
+        && str_contains($process, 'Delete conversation'),
 ];
 
 foreach($checks as $label => $ok) {

@@ -53,6 +53,8 @@ Superusers can delete individual messages in **Setup → Liora Insights**.
 Non-superusers need both `liora-review` to open the dashboard and
 `liora-delete` to see and use the delete action. Deletion is a server-side,
 permanent operation protected by ProcessWire CSRF validation.
+The same permission also allows deleting a complete Thread; its messages are
+removed with it through the database foreign-key cascade.
 
 Liora Insights presents each Thread as a chronological conversation timeline.
 The active provider/model and the settings button remain in a footer toolbar.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3 - 2026-07-23
+
+- Added permission-controlled deletion of an entire conversation from Liora Insights.
+- Deleting a Thread permanently removes all of its messages through the existing database cascade.
+- Added a destructive-action confirmation and responsive thread-footer control.
+
 ## 1.3.2 - 2026-07-23
 
 - Redesigned Liora Insights conversations as a clearer chronological message timeline.
