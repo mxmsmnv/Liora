@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 1101")
-        && str_contains($inputfield, "'version' => 1101")
-        && str_contains($process, "'version' => 1101"),
+    'release versions' => str_contains($module, "'version' => 1102")
+        && str_contains($inputfield, "'version' => 1102")
+        && str_contains($process, "'version' => 1102"),
     'widget initializes without waiting for the whole page' => str_contains($module, '. $script;')
         && str_contains($module, "liora.js?v={\$version}'></script>")
         && str_contains($module, "aria-busy='true'")
@@ -49,6 +49,11 @@ $checks = [
         && str_contains($javascript, "boot();")
         && str_contains($javascript, "widget.removeAttribute('aria-busy')")
         && str_contains($javascript, "document.addEventListener('DOMContentLoaded', boot, {once: true})"),
+    'widget visual hierarchy and contrast' => str_contains($widgetCss, '--liora-text-secondary:')
+        && str_contains($widgetCss, '--liora-control-border:')
+        && str_contains($widgetCss, 'border-left:4px solid var(--liora-accent)')
+        && str_contains($widgetCss, '.liora-widget__form {')
+        && str_contains($widgetCss, 'background:var(--liora-surface-muted);'),
     'config preview is not a nested form' => str_contains($module, "\$preview->previewOnly = true")
         && str_contains($module, "\$previewOnly = !empty(\$options['preview'])")
         && str_contains($module, "<div class='liora-widget__form'")

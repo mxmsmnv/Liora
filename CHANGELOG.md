@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.10.2 - 2026-07-25
+
+- Strengthened the visual hierarchy and contrast of the public widget in both
+  light and dark themes.
+- Gave the conversation canvas, welcome message, toolbar controls, starter
+  prompts, composer and privacy notes distinct readable surfaces.
+- Kept hover states stationary while adding visible keyboard focus states.
+
 ## 1.10.1 - 2026-07-25
 
 - Initialized a rendered widget immediately instead of waiting for the entire
