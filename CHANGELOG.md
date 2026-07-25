@@ -7,6 +7,8 @@
 - Made automatic mode skip the slow semantic fallback for general-knowledge
   questions while retaining it for explicit site, catalogue, page, inventory
   and community-evidence requests.
+- Separated local lexical relevance from vector cosine similarity so a useful
+  exact-term match is not discarded by an incompatible semantic threshold.
 - Added the actual Atlas strategy plus separate lexical and semantic timings to
   safe Insights diagnostics.
 - Preserved existing installations by mapping the legacy fast-retrieval value

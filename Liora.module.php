@@ -417,6 +417,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
                     'collection' => (string)$this->setting('atlasCollection', 'site'),
                     'top_k' => (int)$this->setting('atlasTopK', 4),
                     'minimum_score' => (float)$this->setting('atlasMinScore', 0.2),
+                    'lexical_minimum_score' => (float)$this->setting('atlasLexicalMinScore', 0.24),
                     'maximum_context_chars' => (int)$this->setting('atlasMaxContextChars', 6000),
                     'response_ms' => $atlasResponseMs,
                     'lexical_ms' => (int)($rag['lexical_ms'] ?? 0),
@@ -849,13 +850,25 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $field->columnWidth = 20;
         $fieldset->add($field);
 
+        $field = $modules->get('InputfieldText');
+        $field->attr('name', 'atlasLexicalMinScore');
+        $field->label = $this->_('Lexical minimum relevance');
+        $field->description = $this->_('Local term-match score from 0 to 1. This is intentionally separate from vector cosine similarity.');
+        $field->attr('type', 'number');
+        $field->attr('step', '0.01');
+        $field->attr('min', '0');
+        $field->attr('max', '1');
+        $field->attr('value', (string)$this->setting('atlasLexicalMinScore', '0.24'));
+        $field->columnWidth = 20;
+        $fieldset->add($field);
+
         $field = $modules->get('InputfieldInteger');
         $field->attr('name', 'atlasMaxContextChars');
         $field->label = $this->_('Maximum context characters');
         $field->attr('value', (int)$this->setting('atlasMaxContextChars', 6000));
         $field->attr('min', 500);
         $field->attr('max', 20000);
-        $field->columnWidth = 20;
+        $field->columnWidth = 100;
         $fieldset->add($field);
         $inputfields->add($fieldset);
 
@@ -1408,15 +1421,18 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
             $topK = max(1, min(10, (int)$this->setting('atlasTopK', 4)));
             $minimumScore = max(-1.0, min(1.0, (float)$this->setting('atlasMinScore', 0.2)));
+            $lexicalMinimumScore = max(0.0, min(1.0, (float)$this->setting('atlasLexicalMinScore', 0.24)));
             $maxChars = max(500, min(20000, (int)$this->setting('atlasMaxContextChars', 6000)));
             $hits = [];
+            $hitMinimumScore = $minimumScore;
             if($mode !== 'semantic' && method_exists($atlas, 'lexicalSearch')) {
                 $lexicalStartedAt = microtime(true);
                 $hits = (array)$atlas->lexicalSearch($collection, $question, $topK, [
-                    'minScore' => max(0.0, $minimumScore),
+                    'minScore' => $lexicalMinimumScore,
                 ]);
                 $result['lexical_ms'] = (int)round((microtime(true) - $lexicalStartedAt) * 1000);
                 $result['strategy'] = $hits ? 'lexical' : 'lexical_no_match';
+                if($hits) $hitMinimumScore = $lexicalMinimumScore;
             }
 
             $semanticNeeded = $mode === 'semantic'
@@ -1443,7 +1459,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $sourceKeys = [];
             $usedChars = 0;
             foreach($hits as $hit) {
-                if(!is_array($hit) || (float)($hit['score'] ?? -1) < $minimumScore) continue;
+                if(!is_array($hit) || (float)($hit['score'] ?? -1) < $hitMinimumScore) continue;
                 $meta = (array)($hit['meta'] ?? []);
                 $pageId = (int)($meta['page_id'] ?? $meta['id'] ?? 0);
                 $hasPublicFlag = array_key_exists('public', $meta);

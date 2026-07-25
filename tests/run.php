@@ -151,6 +151,7 @@ $checks = [
         && str_contains($javascript, 'rag_sources'),
     'adaptive Atlas routing' => str_contains($module, "attr('name', 'atlasRetrievalMode')")
         && str_contains($module, "addOption('auto'")
+        && str_contains($module, "attr('name', 'atlasLexicalMinScore')")
         && str_contains($module, 'atlasNeedsSemanticFallback(')
         && str_contains($module, "method_exists(\$atlas, 'lexicalSearch')")
         && str_contains($module, "\$atlas->search(")

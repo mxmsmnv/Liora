@@ -297,7 +297,8 @@ Choose a retrieval mode:
 
 Semantic lookup can add several seconds and provider charges. Automatic mode
 keeps general-knowledge answers fast without removing RAG where site evidence
-matters.
+matters. Lexical and semantic relevance have separate settings because local
+term-match scores and vector cosine similarity are different scales.
 
 After routing, Liora applies the configured result count, score and context-size
 limits, re-resolves ProcessWire page IDs, rejects non-public pages, treats
