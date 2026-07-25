@@ -464,6 +464,9 @@
             });
         }
         showWelcome();
+        input.disabled = false;
+        submit.disabled = false;
+        widget.removeAttribute('aria-busy');
 
         suggestions?.addEventListener('click', event => {
             const button = event.target.closest('[data-liora-suggestion]');
@@ -602,6 +605,8 @@
     };
 
     const boot = () => document.querySelectorAll('.liora-widget').forEach(initialize);
-    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-    else boot();
+    boot();
+    if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot, {once: true});
+    }
 })();

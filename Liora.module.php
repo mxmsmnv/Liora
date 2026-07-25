@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.10.0
+ * @version 1.10.1
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 1100,
+            'version' => 1101,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -498,14 +498,15 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $themeCss = $this->themeCss($theme, $id);
         $compact = !empty($options['compact']) ? ' liora-widget--compact' : '';
         $previewOnly = !empty($options['preview']);
-        $assets = '';
+        $styles = '';
+        $script = '';
 
         if(!self::$assetsRendered) {
             self::$assetsRendered = true;
             $base = $this->wire('config')->urls->siteModules . 'Liora/assets/';
             $version = self::getModuleInfo()['version'];
-            $assets = "<link rel='stylesheet' href='{$base}liora.css?v={$version}'>"
-                . "<script src='{$base}liora.js?v={$version}' defer></script>";
+            $styles = "<link rel='stylesheet' href='{$base}liora.css?v={$version}'>";
+            $script = "<script src='{$base}liora.js?v={$version}'></script>";
         }
 
         $attrs = [
@@ -556,6 +557,10 @@ class Liora extends WireData implements Module, ConfigurableModule {
             }
             $suggestions .= '</div>';
         }
+        $initialWelcome = $welcomeMessage !== ''
+            ? "<div class='liora-message liora-message--assistant liora-message--welcome' data-liora-welcome>"
+                . "<div class='liora-message__content'><p>" . $san->entities($welcomeMessage) . '</p></div></div>'
+            : '';
 
         $composer = $previewOnly
             ? "<div class='liora-widget__form' aria-label='" . $san->entities($this->widgetText('widgetAskLiora')) . "'>"
@@ -568,12 +573,12 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 . "<label class='liora-sr-only' for='{$id}-question'>" . $san->entities($this->widgetText('widgetAskLiora')) . "</label>"
                 . "<input id='{$id}-question' data-liora-input type='text' maxlength='"
                 . (int)$this->setting('maxQuestionLength', 1000) . "' autocomplete='off' placeholder='"
-                . $san->entities($placeholder) . "' required>"
-                . "<button type='submit' data-liora-submit>" . $san->entities($this->widgetText('widgetAsk')) . "</button>"
+                . $san->entities($placeholder) . "' required disabled>"
+                . "<button type='submit' data-liora-submit disabled>" . $san->entities($this->widgetText('widgetAsk')) . "</button>"
                 . "</form>";
 
-        return $assets . $themeCss
-            . "<section id='{$id}' class='liora-widget{$compact}'{$dataAttrs}>"
+        return $styles . $themeCss
+            . "<section id='{$id}' class='liora-widget{$compact}' aria-busy='true'{$dataAttrs}>"
             . "<div class='liora-widget__header'><span class='liora-widget__icon' aria-hidden='true'>✦</span>"
             . "<div><h2>" . $san->entities($heading) . "</h2><p>" . $san->entities($intro) . "</p></div></div>"
             . "<div class='liora-widget__toolbar' data-liora-toolbar hidden>"
@@ -581,7 +586,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
             . "<button type='button' data-liora-new-button>" . $san->entities($this->widgetText('widgetNew')) . "</button>"
             . "<button type='button' data-liora-expand-button aria-pressed='false'>" . $san->entities($this->widgetText('widgetExpand')) . "</button></div>"
             . "<div class='liora-widget__history' data-liora-history-panel hidden></div>"
-            . "<div class='liora-widget__messages' data-liora-messages aria-live='polite'></div>"
+            . "<div class='liora-widget__messages' data-liora-messages aria-live='polite'>{$initialWelcome}</div>"
             . $suggestions
             . $composer
             . "<div class='liora-widget__notes'><p>" . $san->entities($this->widgetText('widgetAiDisclaimer')) . '</p>'
@@ -592,7 +597,8 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 ? "<p>" . $san->entities($this->widgetText('widgetHistoryNotice')) . '</p>'
                 : '')
             . '</div>'
-            . "</section>";
+            . "</section>"
+            . $script;
     }
 
     public function getModuleConfigInputfields(InputfieldWrapper $inputfields): InputfieldWrapper {

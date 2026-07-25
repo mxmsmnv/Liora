@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.10.1 - 2026-07-25
+
+- Initialized a rendered widget immediately instead of waiting for the entire
+  document and unrelated page resources to finish parsing.
+- Kept a one-time DOM-ready scan for additional widgets rendered later on the
+  same page.
+- Added a server-rendered welcome fallback and kept the composer disabled until
+  JavaScript is ready, avoiding a blank or apparently interactive half-state.
+
 ## 1.10.0 - 2026-07-25
 
 - Added a community-oriented roadmap for answer feedback, demand clustering,
