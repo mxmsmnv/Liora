@@ -197,9 +197,9 @@ PII detection must be presented as risk reduction, not a guarantee.
 Goal: use slower or paid capabilities only when they materially improve an
 answer.
 
-- [ ] Detect freshness-sensitive requests such as current price, availability,
+- [x] Detect freshness-sensitive requests such as current price, availability,
       news, releases, awards and events.
-- [ ] Use live web search only when enabled and relevant.
+- [x] Use live web search only when enabled and relevant.
 - [ ] Configurable routing by intent, context, language or complexity.
 - [ ] Provider/model fallback chains delegated through Squad.
 - [ ] Per-request and daily token/cost budgets with safe fallback copy.
@@ -282,4 +282,3 @@ The first complete product loop is:
 
 > visitor question → answer → feedback → demand cluster → editorial task →
 > published improvement → measured reduction in unmet demand
-

@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.9.5
+ * @version 1.10.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 195,
+            'version' => 1100,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -149,7 +149,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $maxTokens = (int)($options['max_tokens'] ?? $options['maxTokens'] ?? $this->setting('maxTokens', 1200));
         $temperature = (float)($options['temperature'] ?? $this->setting('temperature', 0.4));
         $timeout = (int)($options['timeout'] ?? $this->setting('timeout', 60));
-        $webSearch = (bool)($options['webSearch'] ?? $this->setting('webSearchEnabled', false));
+        $webSearch = $this->resolveWebSearch($options, $current, $history);
         $webSearchMaxResults = max(1, min(10, (int)($options['webSearchMaxResults'] ?? $this->setting('webSearchMaxResults', 5))));
         if($webSearch) $systemPrompt = $this->withWebSearchInstructions($systemPrompt);
         $cacheSeconds = (int)$this->setting('cacheSeconds', 3600);
@@ -214,7 +214,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
         $model = $this->getModel((string)($options['model'] ?? 'default'));
         $provider = trim((string)($options['squad_provider'] ?? $options['provider'] ?? $this->getProvider()));
-        $webSearch = (bool)($options['webSearch'] ?? $this->setting('webSearchEnabled', false));
+        $webSearch = $this->resolveWebSearch($options, $current, $history);
         $webSearchMaxResults = max(1, min(10, (int)($options['webSearchMaxResults'] ?? $this->setting('webSearchMaxResults', 5))));
         if($webSearch) $systemPrompt = $this->withWebSearchInstructions($systemPrompt);
         $result = (array)$squad->stream($current, $onDelta, [
@@ -681,9 +681,18 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
         $field = $modules->get('InputfieldCheckbox');
         $field->attr('name', 'webSearchEnabled');
-        $field->label = $this->_('Use live web search');
-        $field->description = $this->_('Lets Squad search the public web when answering. This can improve current facts but may add provider charges and response time. Atlas remains the source for indexed LQRS content.');
+        $field->label = $this->_('Allow live web search');
+        $field->description = $this->_('Lets Squad search the public web when an answer needs current information. Search can add provider charges and response time; indexed site content remains a separate source.');
         if((bool)$this->setting('webSearchEnabled', false)) $field->attr('checked', 'checked');
+        $fieldset->add($field);
+
+        $field = $modules->get('InputfieldSelect');
+        $field->attr('name', 'webSearchMode');
+        $field->label = $this->_('When to search the web');
+        $field->addOption('auto', $this->_('Automatic — only when current information is needed'));
+        $field->addOption('always', $this->_('Always — search for every question'));
+        $field->attr('value', (string)$this->setting('webSearchMode', 'auto'));
+        $field->showIf = 'webSearchEnabled=1';
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldInteger');
@@ -1928,6 +1937,50 @@ JS;
         $configured = trim((string)$this->setting('externalLinksPrompt', $this->defaultExternalLinksPrompt()));
         if($configured === $this->legacyExternalLinksPrompt()) return $this->defaultExternalLinksPrompt();
         return $configured;
+    }
+
+    /**
+     * Decide whether this request needs a slower live-search provider path.
+     *
+     * An explicit integration option is authoritative. The module setting is a
+     * master permission; automatic mode then detects freshness-sensitive user
+     * requests without inspecting system, Atlas or Vox context.
+     */
+    protected function resolveWebSearch(array $options, string $current, array $history = []): bool {
+        if(array_key_exists('webSearch', $options)) return (bool)$options['webSearch'];
+        if(!(bool)$this->setting('webSearchEnabled', false)) return false;
+        if((string)$this->setting('webSearchMode', 'auto') === 'always') return true;
+        return $this->questionNeedsWebSearch($current, $history);
+    }
+
+    protected function questionNeedsWebSearch(string $current, array $history = []): bool {
+        $visitorTurns = [];
+        foreach(array_reverse($history) as $message) {
+            if(!is_array($message) || ($message['role'] ?? '') !== 'user') continue;
+            $content = trim((string)($message['content'] ?? ''));
+            if($content === '') continue;
+            $visitorTurns[] = $content;
+            if(count($visitorTurns) >= 3) break;
+        }
+        $text = trim($current . ' ' . implode(' ', array_reverse($visitorTurns)));
+        if($text === '') return false;
+
+        $patterns = [
+            '/\b(today|tonight|currently|latest|recent|right now|real[- ]?time|up[- ]?to[- ]?date)\b/iu',
+            '/\b(price|cost|availability|available|in stock|where (?:can i )?buy|near me|news|new release|released|award|event|schedule)\b/iu',
+            '/\b(search|look up|check) (?:the )?(web|internet|online)\b/iu',
+            '/(сегодня|сейчас|актуальн\p{L}*|последн\p{L}*|новост\p{L}*|цен\p{L}*|сколько стоит|наличи\p{L}*|где купить|релиз\p{L}*|наград\p{L}*|событи\p{L}*)/iu',
+            '/\b(heute|aktuell|neueste|preis|verfügbar|nachrichten|veranstaltung)\b/iu',
+            '/\b(aujourd.?hui|actuellement|récent|prix|disponible|actualités|événement)\b/iu',
+            '/\b(hoy|actualmente|último|precio|disponible|noticias|evento)\b/iu',
+            '/\b(oggi|attualmente|ultimo|prezzo|disponibile|notizie|evento)\b/iu',
+            '/\b(vandaag|momenteel|laatste|prijs|beschikbaar|nieuws|evenement)\b/iu',
+            '/\b(dzisiaj|obecnie|najnowsz\p{L}*|cena|dostępn\p{L}*|wiadomości|wydarzenie)\b/iu',
+        ];
+        foreach($patterns as $pattern) {
+            if(preg_match($pattern, $text) === 1) return true;
+        }
+        return false;
     }
 
     protected function withWebSearchInstructions(string $systemPrompt): string {

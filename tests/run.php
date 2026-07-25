@@ -38,9 +38,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 195")
-        && str_contains($inputfield, "'version' => 195")
-        && str_contains($process, "'version' => 195"),
+    'release versions' => str_contains($module, "'version' => 1100")
+        && str_contains($inputfield, "'version' => 1100")
+        && str_contains($process, "'version' => 1100"),
     'config preview is not a nested form' => str_contains($module, "\$preview->previewOnly = true")
         && str_contains($module, "\$previewOnly = !empty(\$options['preview'])")
         && str_contains($module, "<div class='liora-widget__form'")
@@ -49,6 +49,9 @@ $checks = [
     'legacy import' => str_contains($module, 'importLegacyHistory'),
     'model selector' => str_contains($module, "attr('name', 'providerModel')"),
     'optional web search' => str_contains($module, "attr('name', 'webSearchEnabled')")
+        && str_contains($module, "attr('name', 'webSearchMode')")
+        && str_contains($module, 'resolveWebSearch(')
+        && str_contains($module, 'questionNeedsWebSearch(')
         && str_contains($module, "'webSearch' =>")
         && str_contains($module, "'webSearchMaxResults' =>")
         && str_contains($module, "'sources' => (array)"),

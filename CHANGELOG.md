@@ -1,12 +1,19 @@
 # Changelog
 
-## Unreleased
+## 1.10.0 - 2026-07-25
 
 - Added a community-oriented roadmap for answer feedback, demand clustering,
   editorial tasks, structured results, quality controls, privacy lifecycle,
   adaptive routing and reporting.
 - Defined portability rules that keep LQRS-specific data models and integrations
   outside the reusable Liora core.
+- Added automatic freshness detection so live web search is used only for
+  current prices, availability, news, releases, awards, events and explicit
+  search requests.
+- Added an optional always-search mode while preserving per-call overrides for
+  custom integrations.
+- Avoided the live-search latency and provider cost for ordinary evergreen
+  questions.
 
 ## 1.9.5 - 2026-07-24
 

@@ -312,9 +312,13 @@ Liora must not claim that it browsed the web when it did not.
 
 ## Optional live web search
 
-Enable **Use live web search** in **Modules → Liora → AI model** when answers
-need current public information. The maximum-results setting is passed to
-Squad, which selects the correct transport:
+Enable **Allow live web search** in **Modules → Liora → AI model** when answers
+may need current public information. Automatic mode is the default: it invokes
+search for freshness-sensitive questions such as current price, availability,
+news, releases, awards and events, while evergreen questions keep the faster
+normal provider path. The optional always-search mode is available for sites
+that require it. The maximum-results setting is passed to Squad, which selects
+the correct transport:
 
 - OpenRouter web plugin for every routed model;
 - Anthropic's native web-search tool;
