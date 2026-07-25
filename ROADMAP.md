@@ -200,7 +200,8 @@ answer.
 - [x] Detect freshness-sensitive requests such as current price, availability,
       news, releases, awards and events.
 - [x] Use live web search only when enabled and relevant.
-- [ ] Configurable routing by intent, context, language or complexity.
+- [x] Configurable Atlas routing with multilingual site-intent detection and
+      automatic, fast, hybrid or semantic modes.
 - [ ] Provider/model fallback chains delegated through Squad.
 - [ ] Per-request and daily token/cost budgets with safe fallback copy.
 - [ ] Cache policies separated by static, personalized and freshness-sensitive

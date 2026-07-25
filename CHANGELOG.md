@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.12.0 - 2026-07-25
+
+- Replaced the ambiguous Atlas fast-retrieval checkbox with automatic, fast,
+  hybrid and semantic routing modes.
+- Made automatic mode skip the slow semantic fallback for general-knowledge
+  questions while retaining it for explicit site, catalogue, page, inventory
+  and community-evidence requests.
+- Added the actual Atlas strategy plus separate lexical and semantic timings to
+  safe Insights diagnostics.
+- Preserved existing installations by mapping the legacy fast-retrieval value
+  to the new automatic or semantic behavior.
+
 ## 1.11.0 - 2026-07-25
 
 - Persisted server-measured total and provider response times with each Liora

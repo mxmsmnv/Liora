@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.11.0
+ * @version 1.12.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 1110,
+            'version' => 1120,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -412,12 +412,16 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'atlas' => [
                     'enabled' => (bool)$this->setting('atlasEnabled', false),
                     'used' => $rag['context'] !== '',
-                    'fast_retrieval' => (bool)$this->setting('atlasFastRetrieval', true),
+                    'mode' => (string)($rag['mode'] ?? $this->atlasRetrievalMode()),
+                    'strategy' => (string)($rag['strategy'] ?? 'disabled'),
                     'collection' => (string)$this->setting('atlasCollection', 'site'),
                     'top_k' => (int)$this->setting('atlasTopK', 4),
                     'minimum_score' => (float)$this->setting('atlasMinScore', 0.2),
                     'maximum_context_chars' => (int)$this->setting('atlasMaxContextChars', 6000),
                     'response_ms' => $atlasResponseMs,
+                    'lexical_ms' => (int)($rag['lexical_ms'] ?? 0),
+                    'semantic_ms' => (int)($rag['semantic_ms'] ?? 0),
+                    'semantic_attempted' => (bool)($rag['semantic_attempted'] ?? false),
                     'source_count' => count((array)$rag['sources']),
                     'page_count' => count((array)($rag['page_ids'] ?? [])),
                 ],
@@ -805,11 +809,16 @@ class Liora extends WireData implements Module, ConfigurableModule {
         if((bool)$this->setting('atlasEnabled', false)) $field->attr('checked', 'checked');
         $fieldset->add($field);
 
-        $field = $modules->get('InputfieldCheckbox');
-        $field->attr('name', 'atlasFastRetrieval');
-        $field->label = $this->_('Prefer fast local Atlas retrieval');
-        $field->description = $this->_('Checks local significant-term matches first and uses semantic embeddings only when they are insufficient. This can remove several seconds from common questions.');
-        if((bool)$this->setting('atlasFastRetrieval', true)) $field->attr('checked', 'checked');
+        $field = $modules->get('InputfieldSelect');
+        $field->attr('name', 'atlasRetrievalMode');
+        $field->label = $this->_('Retrieval mode');
+        $field->description = $this->_('Automatic is recommended. Semantic retrieval creates a query embedding and can add several seconds and provider charges.');
+        $field->addOption('auto', $this->_('Automatic — fast first, semantic only for site-specific questions'));
+        $field->addOption('fast', $this->_('Fast — local lexical search only'));
+        $field->addOption('hybrid', $this->_('Hybrid — lexical search, then semantic fallback'));
+        $field->addOption('semantic', $this->_('Semantic — vector search for every question'));
+        $field->attr('value', $this->atlasRetrievalMode());
+        $field->showIf = 'atlasEnabled=1';
         $fieldset->add($field);
 
         $field = $modules->get('InputfieldText');
@@ -1364,8 +1373,19 @@ class Liora extends WireData implements Module, ConfigurableModule {
      * retrieval returns an empty context so the normal Squad answer continues.
      */
     protected function atlasContext(string $question): array {
-        $result = ['context' => '', 'sources' => [], 'page_ids' => []];
+        $mode = $this->atlasRetrievalMode();
+        $result = [
+            'context' => '',
+            'sources' => [],
+            'page_ids' => [],
+            'mode' => $mode,
+            'strategy' => 'disabled',
+            'lexical_ms' => 0,
+            'semantic_ms' => 0,
+            'semantic_attempted' => false,
+        ];
         if(!(bool)$this->setting('atlasEnabled', false)) return $result;
+        $result['strategy'] = 'unavailable';
 
         $collection = trim((string)$this->setting('atlasCollection', 'site'));
         if(!preg_match('/^(?!__atlas_stage_)[a-z0-9._-]{1,128}$/i', $collection)) return $result;
@@ -1390,17 +1410,27 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $minimumScore = max(-1.0, min(1.0, (float)$this->setting('atlasMinScore', 0.2)));
             $maxChars = max(500, min(20000, (int)$this->setting('atlasMaxContextChars', 6000)));
             $hits = [];
-            if((bool)$this->setting('atlasFastRetrieval', true)
-                && method_exists($atlas, 'lexicalSearch')) {
+            if($mode !== 'semantic' && method_exists($atlas, 'lexicalSearch')) {
+                $lexicalStartedAt = microtime(true);
                 $hits = (array)$atlas->lexicalSearch($collection, $question, $topK, [
-                    'minScore' => 0.42,
+                    'minScore' => max(0.0, $minimumScore),
                 ]);
+                $result['lexical_ms'] = (int)round((microtime(true) - $lexicalStartedAt) * 1000);
+                $result['strategy'] = $hits ? 'lexical' : 'lexical_no_match';
             }
-            if(!$hits) {
+
+            $semanticNeeded = $mode === 'semantic'
+                || $mode === 'hybrid'
+                || ($mode === 'auto' && $this->atlasNeedsSemanticFallback($question));
+            if(!$hits && $semanticNeeded) {
+                $result['semantic_attempted'] = true;
+                $semanticStartedAt = microtime(true);
                 $hits = (array)$atlas->search($collection, $question, $topK, [
                     'mmr' => true,
                     'mmrLambda' => 0.7,
                 ]);
+                $result['semantic_ms'] = (int)round((microtime(true) - $semanticStartedAt) * 1000);
+                $result['strategy'] = $mode === 'semantic' ? 'semantic' : 'lexical_then_semantic';
             }
             if(!$hits) {
                 $error = method_exists($atlas, 'lastError') ? trim((string)$atlas->lastError()) : '';
@@ -1472,6 +1502,47 @@ class Liora extends WireData implements Module, ConfigurableModule {
             $this->logAtlasFallback($e->getMessage());
             return $result;
         }
+    }
+
+    /**
+     * Resolve the new routing setting while preserving pre-1.12 installations.
+     */
+    protected function atlasRetrievalMode(): string {
+        $mode = strtolower(trim((string)$this->setting('atlasRetrievalMode', '')));
+        if(in_array($mode, ['auto', 'fast', 'hybrid', 'semantic'], true)) return $mode;
+        return (bool)$this->setting('atlasFastRetrieval', true) ? 'auto' : 'semantic';
+    }
+
+    /**
+     * Decide whether an automatic-mode miss warrants a paid semantic lookup.
+     *
+     * General-knowledge questions continue directly to Squad. Semantic Atlas
+     * retrieval is reserved for questions that explicitly depend on this
+     * site's catalogue, current page, inventory or community evidence.
+     */
+    protected function atlasNeedsSemanticFallback(string $question): bool {
+        $question = mb_strtolower(trim($question));
+        if($question === '') return false;
+
+        $patterns = [
+            '/\blqrs\b/u',
+            '/\b(?:on|from)\s+(?:this|the|your|our)\s+(?:site|website|page)\b/u',
+            '/\bin\s+(?:this|the|your|our)\s+catalog(?:ue)?\b/u',
+            '/\b(?:available|availability|in stock|do you (?:have|sell|list))\b/u',
+            '/\b(?:this|that)\s+(?:product|bottle|brand|drink|page)\b/u',
+            '/\b(?:reviews?|ratings?|what do people think)\s+(?:of|for|about)\s+(?:this|that|it)\b/u',
+            '/\b(?:auf|von)\s+(?:dieser|der|eurer|unserer)\s+(?:website|seite)\b/u',
+            '/\b(?:dans|sur)\s+(?:ce|cette|notre|votre)\s+(?:site|page|catalogue)\b/u',
+            '/\b(?:en|de)\s+(?:este|esta|nuestro|vuestro)\s+(?:sitio|página|catálogo)\b/u',
+            '/(?:на (?:этом|вашем|нашем) сайте|с (?:этой|вашей|нашей) страницы|в (?:этом|вашем|нашем) каталоге)/u',
+            '/(?:в наличии|есть ли (?:у вас|на сайте|в каталоге)|вы (?:прода[её]те|предлагаете|показываете))/u',
+            '/(?:этот|эта|это)\s+(?:товар|напиток|бренд|бутылк[ауи]|страниц[аеу]|коньяк|лик[её]р)/u',
+            '/(?:отзыв[ыа]?|рейтинг|что думают)\s+(?:об этом|о н[её]м|про него|про неё)/u',
+        ];
+        foreach($patterns as $pattern) {
+            if(preg_match($pattern, $question)) return true;
+        }
+        return false;
     }
 
     protected function logAtlasFallback(string $error): void {

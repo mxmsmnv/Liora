@@ -39,9 +39,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 1110")
-        && str_contains($inputfield, "'version' => 1110")
-        && str_contains($process, "'version' => 1110"),
+    'release versions' => str_contains($module, "'version' => 1120")
+        && str_contains($inputfield, "'version' => 1120")
+        && str_contains($process, "'version' => 1120"),
     'widget initializes without waiting for the whole page' => str_contains($module, '. $script;')
         && str_contains($module, "liora.js?v={\$version}'></script>")
         && str_contains($module, "aria-busy='true'")
@@ -149,9 +149,14 @@ $checks = [
         && str_contains($module, 'atlasContext(')
         && str_contains($module, "'rag_sources'")
         && str_contains($javascript, 'rag_sources'),
-    'fast Atlas fallback' => str_contains($module, "attr('name', 'atlasFastRetrieval')")
+    'adaptive Atlas routing' => str_contains($module, "attr('name', 'atlasRetrievalMode')")
+        && str_contains($module, "addOption('auto'")
+        && str_contains($module, 'atlasNeedsSemanticFallback(')
         && str_contains($module, "method_exists(\$atlas, 'lexicalSearch')")
         && str_contains($module, "\$atlas->search(")
+        && str_contains($module, "'semantic_attempted'")
+        && str_contains($module, "'lexical_ms'")
+        && str_contains($module, "'semantic_ms'")
         && str_contains($module, 'answer from reliable general knowledge instead'),
     'optional Vox context' => str_contains($module, "attr('name', 'voxEnabled')")
         && str_contains($module, "isInstalled('Vox')")

@@ -286,15 +286,24 @@ pretend that its general knowledge is empty.
 Enable **Atlas knowledge** after Atlas has a populated collection. The default
 collection name is `site`.
 
-Liora:
+Choose a retrieval mode:
 
-1. tries fast lexical retrieval for significant local terms;
-2. falls back to semantic search when lexical retrieval has no result;
-3. applies the configured result count, score and context-size limits;
-4. re-resolves ProcessWire page IDs and rejects non-public pages;
-5. treats retrieved excerpts as untrusted reference material;
-6. sends safe excerpts to the selected Squad model;
-7. displays validated source links below the answer.
+- **Automatic** (recommended) tries fast local lexical retrieval first and
+  performs a semantic fallback only when the question explicitly depends on
+  this site's catalogue, current page, availability or community evidence.
+- **Fast** uses local lexical retrieval only.
+- **Hybrid** always falls back from lexical to semantic retrieval.
+- **Semantic** creates a query embedding for every question.
+
+Semantic lookup can add several seconds and provider charges. Automatic mode
+keeps general-knowledge answers fast without removing RAG where site evidence
+matters.
+
+After routing, Liora applies the configured result count, score and context-size
+limits, re-resolves ProcessWire page IDs, rejects non-public pages, treats
+retrieved excerpts as untrusted reference material and displays validated
+source links below the answer. Insights records the actual strategy and
+separate lexical and semantic timings.
 
 Entries without a ProcessWire page ID require explicit `public: true` metadata.
 Atlas failures use the normal non-RAG answer path.
