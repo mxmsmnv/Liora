@@ -205,8 +205,9 @@ answer.
 - [ ] Per-request and daily token/cost budgets with safe fallback copy.
 - [ ] Cache policies separated by static, personalized and freshness-sensitive
       answers.
-- [ ] Latency budgets and timeout telemetry for retrieval and generation stages.
-- [ ] Admin reporting for tokens, estimated cost, cache use and response time.
+- [x] Timeout and latency telemetry for retrieval and generation stages.
+- [x] Admin reporting for tokens, cache use and response time.
+- [ ] Estimated provider cost when Squad exposes normalized pricing data.
 
 ## Phase 8 — Reports and improvement measurement
 

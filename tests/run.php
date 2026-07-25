@@ -30,6 +30,7 @@ $inputfield = file_get_contents($root . '/InputfieldLiora.module.php');
 $process = file_get_contents($root . '/ProcessLiora.module.php');
 $javascript = file_get_contents($root . '/assets/liora.js');
 $adminJavascript = file_get_contents($root . '/assets/liora-admin.js');
+$adminCss = file_get_contents($root . '/assets/liora-admin.css');
 $widgetCss = file_get_contents($root . '/assets/liora.css');
 $theme = json_decode(file_get_contents($root . '/themes/default.json'), true);
 $lightTheme = json_decode(file_get_contents($root . '/themes/light.json'), true);
@@ -38,9 +39,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 1102")
-        && str_contains($inputfield, "'version' => 1102")
-        && str_contains($process, "'version' => 1102"),
+    'release versions' => str_contains($module, "'version' => 1110")
+        && str_contains($inputfield, "'version' => 1110")
+        && str_contains($process, "'version' => 1110"),
     'widget initializes without waiting for the whole page' => str_contains($module, '. $script;')
         && str_contains($module, "liora.js?v={\$version}'></script>")
         && str_contains($module, "aria-busy='true'")
@@ -97,6 +98,16 @@ $checks = [
         && str_contains($javascript, 'addMessageMeta')
         && str_contains($javascript, 'responseTimeMs')
         && str_contains($javascript, 'tokensUsed'),
+    'persistent technical diagnostics' => str_contains($store, '`response_time_ms`')
+        && str_contains($store, '`metadata` MEDIUMTEXT')
+        && str_contains($store, 'sanitizeMetadata(')
+        && str_contains($module, 'responseTechnicalMetadata(')
+        && str_contains($module, 'withEndpointTechnicalMetadata(')
+        && str_contains($module, "'system_prompt_sha256'")
+        && str_contains($process, 'renderMessageDiagnostics(')
+        && str_contains($process, "Technical details")
+        && str_contains($process, 'Technical metadata:')
+        && str_contains($adminCss, '.liora-admin-message__technical'),
     'thinking state' => str_contains($module, "'data-thinking-label'")
         && str_contains($javascript, 'liora-message--thinking')
         && !str_contains($javascript, "submit.textContent = '…'"),

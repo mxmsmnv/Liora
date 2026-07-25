@@ -280,6 +280,61 @@
     color: #30343a;
     line-height: 1.55;
 }
+.liora-admin-message__diagnostics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+}
+.liora-admin-message__diagnostics span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border: 1px solid #d7dce2;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #4b5563;
+    font-size: .72rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+.liora-admin-message__diagnostics span.is-active {
+    border-color: #f9a8ba;
+    background: #fff1f4;
+    color: #9f1239;
+}
+.liora-admin-message__technical {
+    margin-top: 10px;
+    border: 1px solid #dfe3e8;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+.liora-admin-message__technical summary {
+    padding: 9px 11px;
+    color: #4b5563;
+    font-size: .76rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+.liora-admin-message__technical summary:hover { color: #be123c; }
+.liora-admin-message__technical[open] summary { border-bottom: 1px solid #dfe3e8; }
+.liora-admin-message__technical pre {
+    max-height: 28rem;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    border: 0;
+    background: #111827;
+    color: #e5e7eb;
+    font-size: .72rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
 .liora-admin-status { gap: 8px; }
 .liora-admin-pagination {
     display: grid;

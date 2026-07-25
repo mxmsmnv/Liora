@@ -417,6 +417,10 @@ The dashboard includes:
 - ten Threads per page with pagination;
 - chronological visitor, Liora and error messages;
 - source page, referrer, location, model and message metadata;
+- server-measured total/provider latency, input/output/total tokens and cache
+  state;
+- expandable safe technical JSON with the effective generation settings,
+  streaming and web-search decisions, Atlas/Vox retrieval timing and sources;
 - collapsed Threads by default;
 - remembered open/closed state and scroll position per filter/page;
 - status updates;
@@ -425,9 +429,10 @@ The dashboard includes:
 
 **Copy context** copies a complete text block suitable for Codex or another
 debugging tool. It contains safe Thread metadata, source information, message
-timestamps, provider/model names, token totals and every message in order. It
-does not include provider credentials, raw IP addresses, user agents or
-plaintext session identifiers.
+timestamps, provider/model names, response times, token breakdowns, effective
+generation and retrieval settings, source attribution and every message in
+order. It does not include provider credentials, prompt contents, raw IP
+addresses, user agents or plaintext session identifiers.
 
 ## Permissions
 
@@ -447,7 +452,7 @@ Liora stores:
 - authenticated ProcessWire user ID when available;
 - Thread and message content;
 - page/source attribution;
-- provider/model and token metadata;
+- provider/model, token, timing and safe technical metadata;
 - optional GeoIP country, region and city.
 
 Liora intentionally does not store:
@@ -456,6 +461,10 @@ Liora intentionally does not store:
 - raw IP addresses;
 - browser user agents;
 - plaintext session identifiers.
+
+Technical metadata is allowlisted and sanitized again at the storage boundary.
+System prompts are represented only by their character count and SHA-256 hash,
+which makes configuration changes comparable without retaining prompt text.
 
 The quality-review disclosure beneath the widget is editable and can be hidden.
 The default explains that questions may be reviewed to improve LQRS and asks

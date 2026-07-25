@@ -9,7 +9,7 @@ require_once __DIR__ . '/LioraStore.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.10.2
+ * @version 1.11.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -19,7 +19,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 1102,
+            'version' => 1110,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
@@ -170,7 +170,9 @@ class Liora extends WireData implements Module, ConfigurableModule {
         if(isset($options['pageId'])) $request['pageId'] = (int)$options['pageId'];
 
         $squad = $this->squad();
+        $providerStartedAt = microtime(true);
         $result = $squad ? (array)$squad->ask($current, $request) : [];
+        $providerResponseMs = (int)round((microtime(true) - $providerStartedAt) * 1000);
         if(empty($result['success'])) {
             return $this->errorResponse(
                 $this->safeSquadError((string)($result['message'] ?? ''))
@@ -193,6 +195,15 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'usage' => (array)($result['usage'] ?? []),
                 'cached' => !empty($result['cached']),
                 'sources' => (array)($result['sources'] ?? []),
+                'response_time_ms' => $providerResponseMs,
+                'metadata' => $this->responseTechnicalMetadata(
+                    $request,
+                    $result,
+                    $provider,
+                    (string)($result['model'] ?? $model),
+                    false,
+                    $providerResponseMs
+                ),
             ],
         ];
     }
@@ -217,7 +228,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $webSearch = $this->resolveWebSearch($options, $current, $history);
         $webSearchMaxResults = max(1, min(10, (int)($options['webSearchMaxResults'] ?? $this->setting('webSearchMaxResults', 5))));
         if($webSearch) $systemPrompt = $this->withWebSearchInstructions($systemPrompt);
-        $result = (array)$squad->stream($current, $onDelta, [
+        $request = [
             'provider' => $provider,
             'model' => $model,
             'systemPrompt' => $systemPrompt,
@@ -227,7 +238,11 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'timeout' => max(5, min(300, (int)($options['timeout'] ?? $this->setting('timeout', 60)))),
             'webSearch' => $webSearch,
             'webSearchMaxResults' => $webSearchMaxResults,
-        ]);
+        ];
+        if(isset($options['pageId'])) $request['pageId'] = (int)$options['pageId'];
+        $providerStartedAt = microtime(true);
+        $result = (array)$squad->stream($current, $onDelta, $request);
+        $providerResponseMs = (int)round((microtime(true) - $providerStartedAt) * 1000);
         if(empty($result['success'])) {
             return $this->errorResponse($this->safeSquadError((string)($result['message'] ?? '')));
         }
@@ -243,6 +258,15 @@ class Liora extends WireData implements Module, ConfigurableModule {
                 'usage' => (array)($result['usage'] ?? []),
                 'cached' => false,
                 'sources' => (array)($result['sources'] ?? []),
+                'response_time_ms' => $providerResponseMs,
+                'metadata' => $this->responseTechnicalMetadata(
+                    $request,
+                    $result,
+                    (string)($result['provider'] ?? $provider),
+                    (string)($result['model'] ?? $model),
+                    true,
+                    $providerResponseMs
+                ),
             ],
         ];
     }
@@ -293,6 +317,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $originalQuery = trim($san->text((string)($input['originalQuery'] ?? ''), ['maxLength' => 500]));
         $context = trim($san->text((string)($input['context'] ?? 'site'), ['maxLength' => 255]));
         if($question === '') $this->sendJson(['success' => false, 'error' => 'Please enter a question.'], 400);
+        $requestStartedAt = microtime(true);
 
         $pageContext = $this->resolvePageContext(
             (string)($input['sourceUrl'] ?? ''),
@@ -359,18 +384,53 @@ class Liora extends WireData implements Module, ConfigurableModule {
         }
 
         $retrievalQuestion = $this->retrievalQuestion($question, $history);
+        $atlasStartedAt = microtime(true);
         $rag = $this->atlasContext($retrievalQuestion);
+        $atlasResponseMs = (int)round((microtime(true) - $atlasStartedAt) * 1000);
         if($rag['context'] !== '') {
             $systemPrompt .= "\n\n" . $rag['context'];
         }
+        $voxStartedAt = microtime(true);
         $vox = $this->voxContext(array_merge(
             [$pageContext['page_id']],
             (array)($rag['page_ids'] ?? [])
         ));
+        $voxResponseMs = (int)round((microtime(true) - $voxStartedAt) * 1000);
         if($vox['context'] !== '') {
             $systemPrompt .= "\n\n" . $vox['context'];
         }
         $answerSources = array_merge($rag['sources'], $vox['sources']);
+        $technicalContext = [
+            'context' => [
+                'page_id' => (int)$pageContext['page_id'],
+                'page_context' => $context,
+                'history_messages' => count($history),
+                'new_thread' => $newThread,
+                'external_links_restricted' => (bool)$this->setting('restrictExternalLinks', true),
+            ],
+            'retrieval' => [
+                'atlas' => [
+                    'enabled' => (bool)$this->setting('atlasEnabled', false),
+                    'used' => $rag['context'] !== '',
+                    'fast_retrieval' => (bool)$this->setting('atlasFastRetrieval', true),
+                    'collection' => (string)$this->setting('atlasCollection', 'site'),
+                    'top_k' => (int)$this->setting('atlasTopK', 4),
+                    'minimum_score' => (float)$this->setting('atlasMinScore', 0.2),
+                    'maximum_context_chars' => (int)$this->setting('atlasMaxContextChars', 6000),
+                    'response_ms' => $atlasResponseMs,
+                    'source_count' => count((array)$rag['sources']),
+                    'page_count' => count((array)($rag['page_ids'] ?? [])),
+                ],
+                'vox' => [
+                    'enabled' => (bool)$this->setting('voxEnabled', true),
+                    'used' => $vox['context'] !== '',
+                    'maximum_entries' => (int)$this->setting('voxMaxEntries', 8),
+                    'maximum_context_chars' => (int)$this->setting('voxMaxContextChars', 5000),
+                    'response_ms' => $voxResponseMs,
+                    'source_count' => count((array)$vox['sources']),
+                ],
+            ],
+        ];
 
         $messages = [['role' => 'system', 'content' => $systemPrompt]];
         foreach($history as $message) $messages[] = $message;
@@ -378,7 +438,14 @@ class Liora extends WireData implements Module, ConfigurableModule {
 
         $stream = !empty($input['stream']) && (bool)$this->setting('streamingEnabled', true);
         if($stream) {
-            $this->handleStreamResponse($thread, $messages, $pageContext, $answerSources);
+            $this->handleStreamResponse(
+                $thread,
+                $messages,
+                $pageContext,
+                $answerSources,
+                $technicalContext,
+                $requestStartedAt
+            );
         }
 
         $result = $this->chat($messages, ['pageId' => $pageContext['page_id']]);
@@ -392,6 +459,12 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $answer = (string)$result['content'];
         $data = (array)($result['data'] ?? []);
         $answerSources = $this->mergeSources($answerSources, (array)($data['sources'] ?? []));
+        $data = $this->withEndpointTechnicalMetadata(
+            $data,
+            $technicalContext,
+            $requestStartedAt,
+            $answerSources
+        );
         $this->storeAssistantMessage((int)$thread['id'], $answer, $data, $pageContext);
 
         $this->sendJson([
@@ -411,7 +484,9 @@ class Liora extends WireData implements Module, ConfigurableModule {
         array $thread,
         array $messages,
         array $pageContext,
-        array $ragSources = []
+        array $ragSources = [],
+        array $technicalContext = [],
+        float $requestStartedAt = 0.0
     ): void {
         header_remove('Content-Type');
         header('Content-Type: application/x-ndjson; charset=utf-8');
@@ -440,6 +515,12 @@ class Liora extends WireData implements Module, ConfigurableModule {
         $answer = (string)$result['content'];
         $data = (array)($result['data'] ?? []);
         $ragSources = $this->mergeSources($ragSources, (array)($data['sources'] ?? []));
+        $data = $this->withEndpointTechnicalMetadata(
+            $data,
+            $technicalContext,
+            $requestStartedAt,
+            $ragSources
+        );
         $this->storeAssistantMessage((int)$thread['id'], $answer, $data, $pageContext);
         $this->sendStreamEvent('done', [
             'thread_id' => $thread['public_id'],
@@ -1119,6 +1200,106 @@ class Liora extends WireData implements Module, ConfigurableModule {
         return true;
     }
 
+    /**
+     * Diagnostic snapshot returned by chat()/streamChat() and persisted by the
+     * endpoint. It deliberately excludes prompts, credentials and identifiers.
+     */
+    protected function responseTechnicalMetadata(
+        array $request,
+        array $result,
+        string $provider,
+        string $model,
+        bool $streaming,
+        int $providerResponseMs
+    ): array {
+        $systemPrompt = (string)($request['systemPrompt'] ?? '');
+        $usage = [];
+        foreach((array)($result['usage'] ?? []) as $key => $value) {
+            if(is_numeric($value)) $usage[(string)$key] = (int)$value;
+        }
+        $metadata = [
+            'schema_version' => 1,
+            'liora_version' => (int)self::getModuleInfo()['version'],
+            'request' => [
+                'provider' => $provider,
+                'model' => $model,
+                'streaming' => $streaming,
+                'max_tokens' => (int)($request['maxTokens'] ?? 0),
+                'temperature' => (float)($request['temperature'] ?? 0),
+                'timeout_seconds' => (int)($request['timeout'] ?? 0),
+                'cache' => $streaming ? false : ($request['cache'] ?? false),
+                'web_search' => !empty($request['webSearch']),
+                'web_search_mode' => (string)$this->setting('webSearchMode', 'auto'),
+                'web_search_max_results' => (int)($request['webSearchMaxResults'] ?? 0),
+                'history_messages' => count((array)($request['history'] ?? [])),
+                'page_id' => (int)($request['pageId'] ?? 0),
+                'system_prompt_chars' => mb_strlen($systemPrompt),
+                'system_prompt_sha256' => $systemPrompt !== '' ? hash('sha256', $systemPrompt) : '',
+            ],
+            'response' => [
+                'provider' => (string)($result['provider'] ?? $provider),
+                'model' => (string)($result['model'] ?? $model),
+                'cached' => !empty($result['cached']),
+                'usage' => $usage,
+                'source_count' => count((array)($result['sources'] ?? [])),
+                'provider_metadata' => $this->providerResponseMetadata($result),
+            ],
+            'timing' => [
+                'provider_response_ms' => max(0, $providerResponseMs),
+            ],
+        ];
+        return $metadata;
+    }
+
+    /** Extract useful provider diagnostics without response content or raw bodies. */
+    protected function providerResponseMetadata(array $result): array {
+        $raw = is_array($result['raw'] ?? null) ? (array)$result['raw'] : [];
+        $metadata = [];
+        foreach(['id', 'object', 'type', 'created', 'service_tier', 'system_fingerprint', 'stop_reason', 'stop_sequence'] as $key) {
+            $value = $raw[$key] ?? $result[$key] ?? null;
+            if(is_scalar($value) && (string)$value !== '') $metadata[$key] = $value;
+        }
+        $finishReason = $result['finish_reason']
+            ?? $raw['finish_reason']
+            ?? $raw['choices'][0]['finish_reason']
+            ?? null;
+        if(is_scalar($finishReason) && (string)$finishReason !== '') {
+            $metadata['finish_reason'] = $finishReason;
+        }
+        return $metadata;
+    }
+
+    protected function withEndpointTechnicalMetadata(
+        array $data,
+        array $technicalContext,
+        float $requestStartedAt,
+        array $sources
+    ): array {
+        $totalResponseMs = $requestStartedAt > 0
+            ? (int)round((microtime(true) - $requestStartedAt) * 1000)
+            : max(0, (int)($data['response_time_ms'] ?? 0));
+        $metadata = (array)($data['metadata'] ?? []);
+        $metadata['context'] = (array)($technicalContext['context'] ?? []);
+        $metadata['retrieval'] = (array)($technicalContext['retrieval'] ?? []);
+        $metadata['timing'] = array_merge(
+            (array)($metadata['timing'] ?? []),
+            ['total_response_ms' => $totalResponseMs]
+        );
+        $metadata['response'] = array_merge(
+            (array)($metadata['response'] ?? []),
+            [
+                'source_count' => count($sources),
+                'sources' => array_values(array_map(static fn(array $source): array => [
+                    'title' => mb_substr((string)($source['title'] ?? ''), 0, 180),
+                    'url' => mb_substr((string)($source['url'] ?? ''), 0, 2048),
+                ], $sources)),
+            ]
+        );
+        $data['response_time_ms'] = $totalResponseMs;
+        $data['metadata'] = $metadata;
+        return $data;
+    }
+
     protected function storeAssistantMessage(int $threadId, string $answer, array $data, array $pageContext): void {
         $usage = (array)($data['usage'] ?? []);
         $this->store()->addMessage($threadId, 'assistant', $answer, [
@@ -1130,6 +1311,8 @@ class Liora extends WireData implements Module, ConfigurableModule {
             'tokens_output' => (int)($usage['completion_tokens'] ?? $usage['output_tokens'] ?? 0),
             'tokens_total' => (int)($usage['total_tokens'] ?? 0),
             'cached' => !empty($data['cached']),
+            'response_time_ms' => max(0, (int)($data['response_time_ms'] ?? 0)),
+            'metadata' => (array)($data['metadata'] ?? []),
         ]);
     }
 

@@ -62,6 +62,8 @@ class LioraStore extends Wire {
                 `tokens_output` INT UNSIGNED NOT NULL DEFAULT 0,
                 `tokens_total` INT UNSIGNED NOT NULL DEFAULT 0,
                 `cached` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+                `response_time_ms` INT UNSIGNED NOT NULL DEFAULT 0,
+                `metadata` MEDIUMTEXT NULL,
                 `error` VARCHAR(1000) NOT NULL DEFAULT '',
                 `created_at` DATETIME NOT NULL,
                 PRIMARY KEY (`id`),
@@ -71,6 +73,16 @@ class LioraStore extends Wire {
                     FOREIGN KEY (`thread_id`) REFERENCES `" . self::THREADS . "` (`id`)
                     ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+        $this->ensureColumn(
+            self::MESSAGES,
+            'response_time_ms',
+            "`response_time_ms` INT UNSIGNED NOT NULL DEFAULT 0 AFTER `cached`"
+        );
+        $this->ensureColumn(
+            self::MESSAGES,
+            'metadata',
+            "`metadata` MEDIUMTEXT NULL AFTER `response_time_ms`"
         );
         $this->tablesEnsured = true;
     }
@@ -210,10 +222,12 @@ class LioraStore extends Wire {
         $stmt = $this->wire('database')->prepare(
             "INSERT IGNORE INTO `" . self::MESSAGES . "`
             (`thread_id`,`legacy_query_id`,`role`,`content`,`provider`,`model`,`source_url`,
-             `page_id`,`tokens_input`,`tokens_output`,`tokens_total`,`cached`,`error`,`created_at`)
+             `page_id`,`tokens_input`,`tokens_output`,`tokens_total`,`cached`,`response_time_ms`,
+             `metadata`,`error`,`created_at`)
             VALUES
             (:thread_id,:legacy_query_id,:role,:content,:provider,:model,:source_url,
-             :page_id,:tokens_input,:tokens_output,:tokens_total,:cached,:error,:created_at)"
+             :page_id,:tokens_input,:tokens_output,:tokens_total,:cached,:response_time_ms,
+             :metadata,:error,:created_at)"
         );
         $stmt->execute([
             ':thread_id' => $threadId,
@@ -228,6 +242,8 @@ class LioraStore extends Wire {
             ':tokens_output' => max(0, (int)($meta['tokens_output'] ?? 0)),
             ':tokens_total' => max(0, (int)($meta['tokens_total'] ?? 0)),
             ':cached' => !empty($meta['cached']) ? 1 : 0,
+            ':response_time_ms' => max(0, (int)($meta['response_time_ms'] ?? 0)),
+            ':metadata' => $this->encodeMetadata((array)($meta['metadata'] ?? [])),
             ':error' => mb_substr((string)($meta['error'] ?? ''), 0, 1000),
             ':created_at' => $created,
         ]);
@@ -252,7 +268,10 @@ class LioraStore extends Wire {
              ) recent ORDER BY id ASC"
         );
         $stmt->execute([':thread_id' => $threadId]);
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        foreach($rows as &$row) $row = $this->hydrateMessage($row);
+        unset($row);
+        return $rows;
     }
 
     public function deleteMessage(int $messageId): bool {
@@ -350,6 +369,7 @@ class LioraStore extends Wire {
         $messageStmt->execute($ids);
         $grouped = [];
         foreach($messageStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $message) {
+            $message = $this->hydrateMessage($message);
             $grouped[(int)$message['thread_id']][] = $message;
         }
         foreach($threads as &$thread) {
@@ -371,7 +391,11 @@ class LioraStore extends Wire {
         $messages = $this->wire('database')->query(
             "SELECT COUNT(*) messages,
                 SUM(role='user') questions,
-                COALESCE(SUM(tokens_total),0) tokens
+                COALESCE(SUM(tokens_total),0) tokens,
+                COALESCE(SUM(tokens_input),0) tokens_input,
+                COALESCE(SUM(tokens_output),0) tokens_output,
+                COALESCE(SUM(cached),0) cache_hits,
+                COALESCE(AVG(NULLIF(response_time_ms,0)),0) average_response_ms
              FROM `" . self::MESSAGES . "`"
         )->fetch(\PDO::FETCH_ASSOC) ?: [];
         return array_merge($threads, $messages);
@@ -472,6 +496,59 @@ class LioraStore extends Wire {
         $stmt = $this->wire('database')->prepare('SHOW TABLES LIKE :table');
         $stmt->execute([':table' => $table]);
         return (bool)$stmt->fetchColumn();
+    }
+
+    protected function ensureColumn(string $table, string $column, string $definition): void {
+        $stmt = $this->wire('database')->prepare(
+            "SHOW COLUMNS FROM `{$table}` LIKE :column"
+        );
+        $stmt->execute([':column' => $column]);
+        if($stmt->fetchColumn()) return;
+        $this->wire('database')->exec("ALTER TABLE `{$table}` ADD COLUMN {$definition}");
+    }
+
+    protected function hydrateMessage(array $row): array {
+        $decoded = json_decode((string)($row['metadata'] ?? ''), true);
+        $row['metadata'] = is_array($decoded) ? $decoded : [];
+        $row['response_time_ms'] = max(0, (int)($row['response_time_ms'] ?? 0));
+        return $row;
+    }
+
+    /**
+     * Persist diagnostic context defensively without credentials or visitor
+     * identifiers, even when addMessage() is called by another module.
+     */
+    protected function encodeMetadata(array $metadata): ?string {
+        if(!$metadata) return null;
+        $safe = $this->sanitizeMetadata($metadata);
+        if(!$safe) return null;
+        $json = json_encode($safe, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if(!is_string($json) || $json === '') return null;
+        return $json;
+    }
+
+    protected function sanitizeMetadata(array $metadata, int $depth = 0): array {
+        if($depth > 6) return [];
+        $safe = [];
+        foreach(array_slice($metadata, 0, 100, true) as $key => $value) {
+            $key = mb_substr((string)$key, 0, 128);
+            if($key === '' || preg_match(
+                '/(^|_)(api_?key|authorization|cookie|secret|password|access_token|refresh_token|session_id|session_hash|ip|ip_address|user_agent|headers?|raw|body|content|message)($|_)/i',
+                $key
+            )) continue;
+            if(str_contains(strtolower($key), 'prompt')
+                && !in_array($key, ['system_prompt_chars', 'system_prompt_sha256'], true)) {
+                continue;
+            }
+            if(is_array($value)) {
+                $safe[$key] = $this->sanitizeMetadata($value, $depth + 1);
+            } elseif(is_bool($value) || is_int($value) || is_float($value) || $value === null) {
+                $safe[$key] = $value;
+            } elseif(is_scalar($value)) {
+                $safe[$key] = mb_substr((string)$value, 0, 2048);
+            }
+        }
+        return $safe;
     }
 
     protected function validPublicId(string $id): string {

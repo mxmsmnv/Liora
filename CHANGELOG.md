@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.11.0 - 2026-07-25
+
+- Persisted server-measured total and provider response times with each Liora
+  answer.
+- Added safe structured diagnostics for generation settings, normalized usage,
+  cache state, streaming, adaptive web search, Atlas/Vox retrieval timings,
+  source attribution and allowlisted provider response metadata.
+- Added message-level diagnostic badges and expandable technical JSON to Liora
+  Insights, plus average response time and cache-hit summary cards.
+- Included full safe technical metadata in **Copy context** while continuing to
+  exclude credentials, prompts, IP addresses, user agents and session IDs.
+
 ## 1.10.2 - 2026-07-25
 
 - Strengthened the visual hierarchy and contrast of the public widget in both
