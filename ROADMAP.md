@@ -67,6 +67,59 @@ Liora already provides:
 
 The next releases build a measurable improvement loop on this foundation.
 
+## Production pilot gate
+
+Goal: define the minimum controls required before Liora is exposed to a broad
+public audience on a content, catalogue, recipe or recommendation site.
+
+This is a cross-phase release gate rather than a separate product direction.
+Items below may be implemented in the numbered phases where they naturally
+belong, but a production pilot should not be considered complete until the
+enabled public experience has an explicit answer for every item.
+
+- [ ] Add optional **Helpful / Not helpful** feedback with localizable negative
+      reasons and an Insights filter for answers requiring editorial review.
+- [ ] Add configurable request quotas by session/authenticated user and a
+      bounded site-wide daily request or token budget with deterministic
+      fallback copy when the limit is reached.
+- [ ] Add provider/model fallback through Squad without silently bypassing the
+      active budget, grounding or web-search policy.
+- [ ] Add configurable retention for Threads and messages, scheduled deletion
+      or anonymization, and a dry-run report before destructive maintenance.
+- [ ] Add optional masking of email addresses, phone numbers and similar
+      personal details before message persistence, while documenting that
+      masking reduces risk rather than guaranteeing removal of all PII.
+- [ ] Add a configurable **host-grounded recommendation mode**. In this mode,
+      recommended recipes, products, pages, prices and availability must come
+      from validated host-site result resolvers; the model may explain results
+      but must not invent catalogue entities or executable actions.
+- [ ] Add configurable topic policies for safety-sensitive areas such as
+      nutrition, allergies, health, legal or financial questions, including
+      safe refusal/escalation copy and placement-specific disclaimers.
+- [ ] Keep live web search disabled by default per placement and expose its
+      latency, provider usage and source attribution in Insights when enabled.
+- [ ] Provide a cache/session integration check for every public placement:
+      fresh CSRF token, Thread ownership, rate limiting, streaming fallback and
+      anonymous full-page-cache behavior.
+- [ ] Provide editable privacy disclosure near the input, visitor-controlled
+      clearing of local history, and an administrator procedure for deleting
+      server-side Threads when ownership can be verified.
+- [ ] Create a small reviewed evaluation set covering grounded answers,
+      unsupported requests, follow-up constraints, failed retrieval, provider
+      timeout, budget exhaustion and malicious prompt/content input.
+- [ ] Document a production smoke test and rollback switch that disables the
+      public widget/endpoint without deleting Insights data or Squad settings.
+
+Recommended rollout for the first production adopter:
+
+1. Admin-only testing with Squad and the tracked endpoint.
+2. Search-with-no-results fallback on a bounded set of public pages.
+3. Page-specific questions after the host content has been indexed in Atlas.
+4. Structured recommendations only after result resolvers and grounding checks
+   are available.
+5. Broader conversational placement only after feedback, retention, budgets
+   and evaluation reporting are operational.
+
 ## Phase 0 — Community hardening
 
 Goal: make a clean installation feel product-neutral and make integrations
