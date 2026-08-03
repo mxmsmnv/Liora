@@ -1,0 +1,25 @@
+{
+  "name": "Liora Dark",
+  "mode": "dark",
+  "variables": {
+    "accent": "#fb7185",
+    "accentDark": "#f43f5e",
+    "onAccent": "#ffffff",
+    "surface": "#1c1917",
+    "surfaceMuted": "#0c0a09",
+    "headerSurface": "#3b101c",
+    "hoverSurface": "#292524",
+    "inputSurface": "#292524",
+    "text": "#f5f5f4",
+    "textMuted": "#a8a29e",
+    "border": "#44403c",
+    "focusRing": "#9f1239",
+    "dangerSurface": "#3f1218",
+    "dangerBorder": "#881337",
+    "dangerText": "#fecdd3",
+    "radius": "1rem",
+    "shadow": "0 16px 38px rgba(0, 0, 0, .36)",
+    "messagesMaxHeight": "min(64vh, 42rem)",
+    "messageMaxWidth": "46rem"
+  }
+}
