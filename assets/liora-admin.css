@@ -4,7 +4,7 @@
     --liora-admin-muted: #68707b;
     --liora-admin-surface: #fff;
     --liora-admin-surface-muted: #f7f8fa;
-    max-width: 1440px;
+    width: 100%;
 }
 .liora-admin-intro {
     display: flex;
