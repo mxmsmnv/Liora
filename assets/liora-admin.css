@@ -44,6 +44,12 @@
     flex: 0 0 auto;
     gap: 9px;
 }
+.ProcessLiora .uk-button > .fa {
+    position: relative;
+    top: .06em;
+    line-height: inherit;
+    vertical-align: baseline;
+}
 .liora-admin-intro__actions .uk-button { border-radius: 8px; }
 .liora-admin-metrics {
     margin-bottom: 26px;
@@ -182,37 +188,15 @@
     overflow-x: auto;
     scrollbar-width: thin;
 }
-.liora-admin-filters ul {
-    display: flex;
-    gap: 6px;
+.liora-admin-filters .uk-subnav {
+    flex-wrap: nowrap;
     width: max-content;
     min-width: 100%;
-    margin: 0;
-    padding: 0 0 3px;
-    list-style: none;
+    margin-bottom: 0;
+    padding-bottom: 3px;
 }
-.liora-admin-filters a {
-    display: inline-flex;
-    min-height: 34px;
-    align-items: center;
-    padding: 0 13px;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    color: #555d68;
-    font-size: .78rem;
-    font-weight: 500;
-    line-height: 1;
-    text-decoration: none;
-    white-space: nowrap;
-}
-.liora-admin-filters a:hover {
-    border-color: #d6dae0;
-    background: #f5f6f7;
-    color: #20242a;
-}
-.liora-admin-filters a[aria-current='page'] {
-    border-color: #20242a;
-    background: #20242a;
+.liora-admin-filters .uk-subnav-pill > .uk-active > a {
+    background: var(--liora-admin-accent);
     color: #fff;
 }
 .liora-admin-filters a:focus-visible,

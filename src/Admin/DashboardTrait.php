@@ -121,11 +121,13 @@ trait ProcessLioraDashboardTrait {
             . $this->_('Recent conversations') . '</h2><p>'
             . $this->_('Open a conversation to inspect its context, response, diagnostics, and review status.')
             . "</p></div><span class='liora-admin-count'>{$totalThreads}</span></header>"
-            . "<nav class='liora-admin-filters' aria-label='" . $this->_('Filter conversations by status') . "'><ul>";
+            . "<nav class='liora-admin-filters' aria-label='" . $this->_('Filter conversations by status')
+            . "'><ul class='uk-subnav uk-subnav-pill'>";
         foreach($items as $value => $label) {
             $current = $value === $active ? " aria-current='page'" : '';
+            $class = $value === $active ? " class='uk-active'" : '';
             $href = $this->threadListUrl($value, 1);
-            $out .= "<li><a href='{$href}'{$current}>{$label}</a></li>";
+            $out .= "<li{$class}><a href='{$href}'{$current}>{$label}</a></li>";
         }
         return $out . '</ul></nav></section>';
     }

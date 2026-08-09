@@ -5,6 +5,15 @@ All notable changes to Liora will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.1] - 2026-08-09
+
+### Changed
+
+- Replaced the custom conversation status filter with the native UIkit
+  `uk-subnav uk-subnav-pill` pattern used by Ichiban and the ProcessWire design
+  system reference.
+- Aligned Font Awesome button icons with their text baseline.
+
 ## [1.14.0] - 2026-08-08
 
 ### Changed
