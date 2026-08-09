@@ -11,7 +11,7 @@ It is made for editorial, commerce, support, directory, and knowledge sites
 that want an on-page answer experience without hiding provider access,
 retrieval, privacy, or editorial review behind a black box.
 
-**Version:** 1.0.0<br>
+**Version:** 1.1.0<br>
 **Author:** Maxim Semenov<br>
 **Website:** [smnv.org](https://smnv.org)<br>
 **Email:** [maxim@smnv.org](mailto:maxim@smnv.org)
@@ -33,6 +33,8 @@ Those responsibilities remain in
 - Records unanswered questions and conversation demand in ProcessWire.
 - Adds **Setup → Liora Insights** for editorial review and diagnostics.
 - Supports optional Atlas retrieval from indexed public site content.
+- Accepts a separate canonical retrieval hint for typo-tolerant site search
+  without rewriting the visitor's recorded question.
 - Supports optional published Vox reviews, questions, replies, and discussions.
 - Supports optional GeoIP country, region, and city enrichment.
 - Supports optional live public search through Squad with normalized citations.

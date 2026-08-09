@@ -5,6 +5,22 @@ All notable changes to Liora will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-08
+
+### Added
+
+- Added the bounded `retrievalQuery` widget and endpoint option so consuming
+  sites can pass a canonical spelling hint without changing the visitor's
+  visible question or recorded original query.
+
+### Changed
+
+- Atlas uses the canonical hint for a new conversation and combines it with
+  follow-up context in an existing conversation.
+- Search-context prompting now treats corrected spellings as hints and avoids
+  claiming matching catalogue records are absent when supplied site evidence
+  confirms them.
+
 ## [1.0.0] - 2026-08-02
 
 First public release of Liora. The module has not been published before.

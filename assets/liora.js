@@ -517,6 +517,7 @@
                         threadId: currentThread.id,
                         history: priorHistory,
                         originalQuery: widget.dataset.originalQuery || '',
+                        retrievalQuery: widget.dataset.retrievalQuery || '',
                         context: widget.dataset.context || 'site',
                         sourceUrl: location.pathname + location.search,
                         referrerUrl: document.referrer || '',

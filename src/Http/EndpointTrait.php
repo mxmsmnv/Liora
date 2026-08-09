@@ -46,6 +46,9 @@ trait LioraEndpointTrait {
             'maxLength' => (int)$this->setting('maxQuestionLength', 1000),
         ]));
         $originalQuery = trim($san->text((string)($input['originalQuery'] ?? ''), ['maxLength' => 500]));
+        $retrievalQuery = trim($san->textarea((string)($input['retrievalQuery'] ?? ''), [
+            'maxLength' => (int)$this->setting('maxQuestionLength', 1000),
+        ]));
         $context = trim($san->text((string)($input['context'] ?? 'site'), ['maxLength' => 255]));
         if($question === '') $this->sendJson(['success' => false, 'error' => 'Please enter a question.'], 400);
         $requestStartedAt = microtime(true);
@@ -100,6 +103,11 @@ trait LioraEndpointTrait {
         if($originalQuery !== '') {
             $systemPrompt .= "\n\nThe visitor originally searched for: \"{$originalQuery}\". The site did not give them a sufficient answer.";
         }
+        if($retrievalQuery !== '' && $retrievalQuery !== $originalQuery) {
+            $systemPrompt .= "\nThe consuming site resolved the likely catalogue spelling to: \"{$retrievalQuery}\". "
+                . 'Treat this as a search hint rather than proof. Use retrieved same-site records as evidence, '
+                . 'and do not claim that matching catalogue records are absent when those records are present in the supplied context.';
+        }
         if($pageContext['source_url'] !== '') {
             $systemPrompt .= "\nThe visitor is asking from this site path: {$pageContext['source_url']}.";
         }
@@ -121,6 +129,11 @@ trait LioraEndpointTrait {
         }
 
         $retrievalQuestion = $this->retrievalQuestion($question, $history);
+        if($retrievalQuery !== '') {
+            $retrievalQuestion = $newThread
+                ? $retrievalQuery
+                : mb_substr($retrievalQuery . "\n" . $retrievalQuestion, 0, 1600);
+        }
         $atlasStartedAt = microtime(true);
         $rag = $this->atlasContext($retrievalQuestion);
         $atlasResponseMs = (int)round((microtime(true) - $atlasStartedAt) * 1000);
@@ -142,7 +155,8 @@ trait LioraEndpointTrait {
                 'page_id' => (int)$pageContext['page_id'],
                 'page_context' => $context,
                 'history_messages' => count($history),
-                'new_thread' => $newThread,
+                    'new_thread' => $newThread,
+                    'retrieval_query_supplied' => $retrievalQuery !== '',
                 'external_links_restricted' => (bool)$this->setting('restrictExternalLinks', true),
             ],
             'retrieval' => [
@@ -275,4 +289,3 @@ trait LioraEndpointTrait {
     }
 
 }
-

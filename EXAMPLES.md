@@ -1,6 +1,6 @@
 # Liora Examples
 
-These examples target Liora 1.0.0. Confirm that Liora and Squad are installed
+These examples target Liora 1.1.0. Confirm that Liora and Squad are installed
 and configured before using them.
 
 ## Feature-Detect Liora
@@ -41,9 +41,11 @@ calls `handleEndpoint()`.
 
 ```php
 $searchQuery = trim((string)$input->get->text('q'));
+$canonicalQuery = $searchSuggestion !== '' ? $searchSuggestion : $searchQuery;
 
 echo $liora->renderWidget([
     'originalQuery' => $searchQuery,
+    'retrievalQuery' => $canonicalQuery,
     'initialQuestion' => $searchQuery,
     'autoSubmitInitialQuestion' => $searchQuery !== '',
     'context' => 'search',
@@ -55,6 +57,10 @@ echo $liora->renderWidget([
 
 This uses the normal tracked endpoint, including Thread ownership, optional
 Atlas/Vox context, streaming, and Insights analytics.
+
+`retrievalQuery` is useful when deterministic site search has corrected a
+likely typo. Liora keeps `originalQuery` and the visible question unchanged,
+but uses the bounded canonical hint to retrieve more relevant site records.
 
 ## Starter Questions
 
@@ -192,4 +198,3 @@ Use the custom endpoint example in
 - anonymous and authenticated ownership boundaries.
 
 Do not copy Liora's internal SQL or LocalStorage implementation into the site.
-

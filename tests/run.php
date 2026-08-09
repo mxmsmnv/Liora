@@ -78,9 +78,9 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 100")
-        && str_contains($inputfield, "'version' => 100")
-        && str_contains($process, "'version' => 100"),
+    'release versions' => str_contains($module, "'version' => 110")
+        && str_contains($inputfield, "'version' => 110")
+        && str_contains($process, "'version' => 110"),
     'provider model integration API' => str_contains($module, 'public function getProviderModelOptions(): array'),
     'widget initializes without waiting for the whole page' => str_contains($module, '. $script;')
         && str_contains($module, "liora.js?v={\$version}'></script>")
@@ -192,6 +192,14 @@ $checks = [
         && str_contains($javascript, 'widget.dataset.autoSubmitInitialQuestion')
         && str_contains($javascript, 'queueMicrotask')
         && str_contains($javascript, 'form.requestSubmit()'),
+    'canonical retrieval query' => str_contains($module, "\$options['retrievalQuery']")
+        && str_contains($module, "'data-retrieval-query'")
+        && str_contains($module, "\$input['retrievalQuery']")
+        && str_contains($module, "? \$retrievalQuery")
+        && str_contains($module, "\$retrievalQuery . \"\\n\" . \$retrievalQuestion")
+        && str_contains($module, 'Treat this as a search hint rather than proof')
+        && str_contains($module, "'retrieval_query_supplied'")
+        && str_contains($javascript, 'retrievalQuery: widget.dataset.retrievalQuery'),
     'optional Atlas RAG' => str_contains($module, "attr('name', 'atlasEnabled')")
         && str_contains($module, 'atlasContext(')
         && str_contains($module, "'rag_sources'")

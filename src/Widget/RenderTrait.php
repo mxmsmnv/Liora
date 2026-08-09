@@ -5,7 +5,7 @@ trait LioraWidgetRenderTrait {
     /**
      * Render the reusable public CTA/chat widget.
      *
-     * Options: originalQuery, context, sourceUrl, pageId, heading, intro,
+     * Options: originalQuery, retrievalQuery, context, sourceUrl, pageId, heading, intro,
      * placeholder, thinkingLabel, initialQuestion, autoSubmitInitialQuestion,
      * showWelcomeMessage, welcomeMessage, showSuggestedPrompts,
      * suggestedPrompts, theme, compact.
@@ -16,6 +16,11 @@ trait LioraWidgetRenderTrait {
         $san = $this->wire('sanitizer');
         $page = $this->wire('page');
         $query = trim((string)($options['originalQuery'] ?? ''));
+        $retrievalQuery = mb_substr(
+            trim((string)($options['retrievalQuery'] ?? '')),
+            0,
+            max(1, (int)$this->setting('maxQuestionLength', 1000))
+        );
         $context = trim((string)($options['context'] ?? ($page && $page->template ? $page->template->name : 'site')));
         $sourceUrl = (string)($options['sourceUrl'] ?? ($page && $page->id ? $page->url : ''));
         $pageId = (int)($options['pageId'] ?? ($page && $page->id ? $page->id : 0));
@@ -72,6 +77,7 @@ trait LioraWidgetRenderTrait {
         $attrs = [
             'data-endpoint' => $endpoint,
             'data-original-query' => $query,
+            'data-retrieval-query' => $retrievalQuery,
             'data-context' => $context,
             'data-source-url' => $sourceUrl,
             'data-page-id' => (string)$pageId,
@@ -164,4 +170,3 @@ trait LioraWidgetRenderTrait {
     }
 
 }
-

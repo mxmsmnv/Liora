@@ -42,6 +42,7 @@ $liora = $modules->get('Liora');
 
 echo $liora->renderWidget([
     'originalQuery' => $searchQuery ?? '',
+    'retrievalQuery' => $canonicalQuery ?? ($searchQuery ?? ''),
     'context' => $page->template->name,
     'sourceUrl' => $page->url,
     'pageId' => $page->id,
@@ -74,6 +75,12 @@ Set `initialQuestion` to prefill the composer. When
 the widget initializes. This is intended for AI-powered search result pages and
 uses the same tracked Thread, streaming, Atlas/Vox context and analytics flow
 as a visitor submission.
+
+When deterministic search recognizes a likely misspelling, pass the visitor's
+unchanged text as `originalQuery` and the corrected catalogue spelling as
+`retrievalQuery`. The latter is a bounded retrieval hint, not asserted truth:
+Liora uses it to retrieve same-site evidence while keeping the visitor's actual
+wording in the conversation and Insights.
 
 Use `theme => 'default'` for the adaptive Light + Dark theme, `light` to force
 the light palette, or `dark` to force the dark palette. The adaptive theme uses

@@ -1,6 +1,6 @@
 # Liora Public API
 
-This document describes the public interface of Liora 1.0.0. Verify the
+This document describes the public interface of Liora 1.1.0. Verify the
 installed module version and current ProcessWire site state before using it.
 
 Provider credentials belong to Squad. Do not pass credentials through Liora
@@ -185,6 +185,7 @@ Supported options:
 | Option | Type | Purpose |
 | --- | --- | --- |
 | `originalQuery` | string | Search/query context shown to Liora |
+| `retrievalQuery` | string | Canonical search hint used for site retrieval while preserving the visitor's original wording |
 | `context` | string | Site-defined context label |
 | `sourceUrl` | string | Current same-site source URL |
 | `pageId` | int | Current ProcessWire page ID |
@@ -251,6 +252,7 @@ Common request fields:
 | `message` | string | Required visitor question |
 | `threadId` | string | Existing opaque public Thread ID |
 | `originalQuery` | string | Original site search/query |
+| `retrievalQuery` | string | Optional canonical search hint for Atlas retrieval |
 | `context` | string | Site-defined context label |
 | `sourceUrl` | string | Current same-site page URL |
 | `referrerUrl` | string | Browser referrer |
@@ -282,7 +284,7 @@ review.
 
 ## Hooks
 
-Liora 1.0.0 does not document a stable public hook API. Do not invent hook
+Liora 1.1.0 does not document a stable public hook API. Do not invent hook
 names. Use the public methods above or open an issue for a required extension
 point.
 
@@ -304,7 +306,7 @@ to tables.
 
 ## Compatibility And Errors
 
-Liora 1.0.0 requires ProcessWire 3.0.210+, PHP 8.1+, and Squad. Optional
+Liora 1.1.0 requires ProcessWire 3.0.210+, PHP 8.1+, and Squad. Optional
 capabilities must be feature-detected.
 
 Atlas, Vox, GeoIP, live search, streaming, and provider metadata can be absent
