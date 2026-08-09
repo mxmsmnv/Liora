@@ -121,4 +121,3 @@ trait ProcessLioraMessagesTrait {
         return $user->isSuperuser() || $user->hasPermission('liora-delete');
     }
 }
-

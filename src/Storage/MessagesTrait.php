@@ -118,4 +118,3 @@ trait LioraStoreMessagesTrait {
     }
 
 }
-

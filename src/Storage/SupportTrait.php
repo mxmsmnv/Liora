@@ -78,4 +78,3 @@ trait LioraStoreSupportTrait {
         return in_array($status, self::statuses(), true) ? $status : 'new';
     }
 }
-

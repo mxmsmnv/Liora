@@ -84,4 +84,3 @@ trait LioraStoreSchemaTrait {
     }
 
 }
-

@@ -159,4 +159,3 @@ trait LioraStoreInsightsTrait {
     }
 
 }
-
