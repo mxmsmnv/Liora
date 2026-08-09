@@ -155,8 +155,8 @@ trait LioraEndpointTrait {
                 'page_id' => (int)$pageContext['page_id'],
                 'page_context' => $context,
                 'history_messages' => count($history),
-                    'new_thread' => $newThread,
-                    'retrieval_query_supplied' => $retrievalQuery !== '',
+                'new_thread' => $newThread,
+                'retrieval_query_supplied' => $retrievalQuery !== '',
                 'external_links_restricted' => (bool)$this->setting('restrictExternalLinks', true),
             ],
             'retrieval' => [
