@@ -1,6 +1,6 @@
 # Liora Public API
 
-This document describes the public interface of Liora 1.1.0. Verify the
+This document describes the public interface of Liora 1.13.0. Verify the
 installed module version and current ProcessWire site state before using it.
 
 Provider credentials belong to Squad. Do not pass credentials through Liora
@@ -284,7 +284,7 @@ review.
 
 ## Hooks
 
-Liora 1.1.0 does not document a stable public hook API. Do not invent hook
+Liora 1.13.0 does not document a stable public hook API. Do not invent hook
 names. Use the public methods above or open an issue for a required extension
 point.
 
@@ -306,7 +306,7 @@ to tables.
 
 ## Compatibility And Errors
 
-Liora 1.1.0 requires ProcessWire 3.0.210+, PHP 8.1+, and Squad. Optional
+Liora 1.13.0 requires ProcessWire 3.0.210+, PHP 8.1+, and Squad. Optional
 capabilities must be feature-detected.
 
 Atlas, Vox, GeoIP, live search, streaming, and provider metadata can be absent

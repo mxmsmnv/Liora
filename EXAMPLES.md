@@ -1,6 +1,6 @@
 # Liora Examples
 
-These examples target Liora 1.1.0. Confirm that Liora and Squad are installed
+These examples target Liora 1.13.0. Confirm that Liora and Squad are installed
 and configured before using them.
 
 ## Feature-Detect Liora
