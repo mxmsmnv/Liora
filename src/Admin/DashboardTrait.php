@@ -2,25 +2,49 @@
 
 trait ProcessLioraDashboardTrait {
 
+    protected function renderWorkspaceIntro(array $summary): string {
+        $reviewCount = (int)($summary['new_count'] ?? 0);
+        $reviewUrl = $this->threadListUrl('new', 1);
+        $reviewLabel = $reviewCount > 0
+            ? sprintf($this->_('Review %d new'), $reviewCount)
+            : $this->_('View conversations');
+        return "<section class='liora-admin-intro'>"
+            . "<div class='liora-admin-intro__copy'><span class='liora-admin-eyebrow'>" . $this->_('Visitor demand') . '</span>'
+            . '<h2>' . $this->_('Turn unanswered questions into better content') . '</h2>'
+            . '<p>' . $this->_('Review conversations, spot repeated needs, and decide what the site should answer next.') . '</p></div>'
+            . "<div class='liora-admin-intro__actions'><a class='uk-button uk-button-primary' href='{$reviewUrl}'>"
+            . "<i class='fa fa-inbox' aria-hidden='true'></i> {$reviewLabel}</a>"
+            . "<a class='uk-button uk-button-default' href='" . $this->settingsUrl() . "'>"
+            . "<i class='fa fa-cog' aria-hidden='true'></i> " . $this->_('Settings') . '</a></div></section>';
+    }
+
     protected function renderSummary(array $summary, Liora $liora): string {
-        $cards = [
-            $this->_('Conversations') => (int)($summary['total'] ?? 0),
-            $this->_('Messages') => (int)($summary['messages'] ?? 0),
-            $this->_('Questions') => (int)($summary['questions'] ?? 0),
-            $this->_('Needs review') => (int)($summary['new_count'] ?? 0),
-            $this->_('Today') => (int)($summary['today'] ?? 0),
-            $this->_('Failed') => (int)($summary['failed'] ?? 0),
-            $this->_('Tokens') => number_format((int)($summary['tokens'] ?? 0)),
+        $primary = [
+            ['label' => $this->_('Needs review'), 'value' => (int)($summary['new_count'] ?? 0), 'icon' => 'inbox', 'tone' => 'attention'],
+            ['label' => $this->_('Today'), 'value' => (int)($summary['today'] ?? 0), 'icon' => 'calendar', 'tone' => 'neutral'],
+            ['label' => $this->_('Conversations'), 'value' => (int)($summary['total'] ?? 0), 'icon' => 'comments', 'tone' => 'neutral'],
+            ['label' => $this->_('Failed'), 'value' => (int)($summary['failed'] ?? 0), 'icon' => 'exclamation-circle', 'tone' => (int)($summary['failed'] ?? 0) > 0 ? 'danger' : 'success'],
+        ];
+        $secondary = [
+            $this->_('Messages') => number_format((int)($summary['messages'] ?? 0)),
+            $this->_('Questions') => number_format((int)($summary['questions'] ?? 0)),
+            $this->_('Tokens used') => number_format((int)($summary['tokens'] ?? 0)),
             $this->_('Average response') => (int)($summary['average_response_ms'] ?? 0) > 0
-                ? $this->formatDuration((int)$summary['average_response_ms'])
-                : '—',
+                ? $this->formatDuration((int)$summary['average_response_ms']) : '—',
             $this->_('Cache hits') => number_format((int)($summary['cache_hits'] ?? 0)),
         ];
-        $out = "<div class='liora-admin-summary'>";
-        foreach($cards as $label => $value) {
-            $out .= "<div class='uk-card uk-card-default uk-card-body uk-padding-small'><div class='uk-text-meta'>{$label}</div><strong>{$value}</strong></div>";
+        $out = "<section class='liora-admin-metrics' aria-label='" . $this->_('Liora activity summary') . "'>"
+            . "<div class='liora-admin-summary'>";
+        foreach($primary as $card) {
+            $out .= "<div class='liora-admin-metric is-{$card['tone']}'>"
+                . "<span class='liora-admin-metric__icon' aria-hidden='true'><i class='fa fa-{$card['icon']}'></i></span>"
+                . "<div><strong>{$card['value']}</strong><span>{$card['label']}</span></div></div>";
         }
-        return $out . '</div>';
+        $out .= "</div><dl class='liora-admin-details'>";
+        foreach($secondary as $label => $value) {
+            $out .= "<div><dt>{$label}</dt><dd>{$value}</dd></div>";
+        }
+        return $out . '</dl></section>';
     }
 
     protected function renderConfigurationNotice(Liora $liora): string {
@@ -53,26 +77,38 @@ trait ProcessLioraDashboardTrait {
 
     protected function renderTopDemand(array $rows): string {
         if(!$rows) return '';
-        $table = $this->wire('modules')->get('MarkupAdminDataTable');
-        $table->setEncodeEntities(true);
-        $table->headerRow([
-            $this->_('Search/context query'),
-            $this->_('Conversations'),
-            $this->_('Messages'),
-            $this->_('Last seen'),
-        ]);
-        foreach($rows as $row) {
-            $table->row([
-                (string)$row['original_query'],
-                (int)$row['threads'],
-                (int)$row['messages'],
-                (string)$row['last_seen'],
-            ]);
+        $visible = array_slice($rows, 0, 8);
+        $remaining = array_slice($rows, 8);
+        $out = "<section class='liora-admin-panel liora-admin-demand'>"
+            . "<header class='liora-admin-section-head'><div><span class='liora-admin-eyebrow'>" . $this->_('Content opportunities') . '</span>'
+            . '<h2>' . $this->_('Repeated unmet demand') . '</h2>'
+            . '<p>' . $this->_('Questions that recur across conversations are strong candidates for new or improved content.') . '</p></div>'
+            . "<span class='liora-admin-count'>" . count($rows) . '</span></header>'
+            . $this->renderDemandTable($visible);
+        if($remaining) {
+            $out .= "<details class='liora-admin-demand__more'><summary>"
+                . sprintf($this->_('Show %d more queries'), count($remaining)) . '</summary>'
+                . $this->renderDemandTable($remaining) . '</details>';
         }
-        return '<h2>' . $this->_('Repeated unmet demand') . '</h2>' . $table->render();
+        return $out . '</section>';
     }
 
-    protected function renderFilters(string $active): string {
+    protected function renderDemandTable(array $rows): string {
+        $san = $this->wire('sanitizer');
+        $out = "<div class='liora-admin-table-wrap'><table class='liora-admin-table'>"
+            . '<thead><tr><th>' . $this->_('Search/context query') . '</th><th>' . $this->_('Conversations')
+            . '</th><th>' . $this->_('Messages') . '</th><th>' . $this->_('Last seen') . '</th></tr></thead><tbody>';
+        foreach($rows as $row) {
+            $out .= '<tr><td data-label="' . $this->_('Query') . '"><strong>'
+                . $san->entities((string)$row['original_query']) . '</strong></td><td data-label="'
+                . $this->_('Conversations') . '">' . (int)$row['threads'] . '</td><td data-label="'
+                . $this->_('Messages') . '">' . (int)$row['messages'] . '</td><td data-label="'
+                . $this->_('Last seen') . '">' . $san->entities((string)$row['last_seen']) . '</td></tr>';
+        }
+        return $out . '</tbody></table></div>';
+    }
+
+    protected function renderFilters(string $active, int $totalThreads): string {
         $items = ['' => $this->_('All')] + array_combine(LioraStore::statuses(), [
             $this->_('New'),
             $this->_('Reviewing'),
@@ -80,13 +116,18 @@ trait ProcessLioraDashboardTrait {
             $this->_('Dismissed'),
             $this->_('Failed'),
         ]);
-        $out = "<h2 class='liora-admin-recent'>" . $this->_('Recent conversations') . "</h2><ul class='uk-subnav uk-subnav-pill'>";
+        $out = "<section class='liora-admin-review'><header class='liora-admin-section-head'><div>"
+            . "<span class='liora-admin-eyebrow'>" . $this->_('Review queue') . '</span><h2>'
+            . $this->_('Recent conversations') . '</h2><p>'
+            . $this->_('Open a conversation to inspect its context, response, diagnostics, and review status.')
+            . "</p></div><span class='liora-admin-count'>{$totalThreads}</span></header>"
+            . "<nav class='liora-admin-filters' aria-label='" . $this->_('Filter conversations by status') . "'><ul>";
         foreach($items as $value => $label) {
-            $class = $value === $active ? " class='uk-active'" : '';
+            $current = $value === $active ? " aria-current='page'" : '';
             $href = $this->threadListUrl($value, 1);
-            $out .= "<li{$class}><a href='{$href}'>{$label}</a></li>";
+            $out .= "<li><a href='{$href}'{$current}>{$label}</a></li>";
         }
-        return $out . '</ul>';
+        return $out . '</ul></nav></section>';
     }
 
     protected function renderPagination(

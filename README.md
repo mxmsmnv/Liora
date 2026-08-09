@@ -11,7 +11,7 @@ It is made for editorial, commerce, support, directory, and knowledge sites
 that want an on-page answer experience without hiding provider access,
 retrieval, privacy, or editorial review behind a black box.
 
-**Version:** 1.13.0<br>
+**Version:** 1.14.0<br>
 **Author:** Maxim Semenov<br>
 **Website:** [smnv.org](https://smnv.org)<br>
 **Email:** [maxim@smnv.org](mailto:maxim@smnv.org)

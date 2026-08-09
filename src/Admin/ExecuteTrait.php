@@ -62,12 +62,13 @@ trait ProcessLioraExecuteTrait {
         $this->browserTitle($this->_('Liora Insights'));
 
         return "<div class='ProcessLiora'>"
+            . $this->renderWorkspaceIntro($summary)
             . $this->renderSummary($summary, $liora)
             . $this->renderConfigurationNotice($liora)
-            . $this->renderTopDemand($top)
-            . $this->renderFilters($status)
+            . $this->renderFilters($status, $totalThreads)
             . $this->renderThreads($threads)
             . $this->renderPagination($pageNumber, $totalPages, $totalThreads, $perPage, $status)
+            . $this->renderTopDemand($top)
             . $this->renderSettingsFooter($liora)
             . '</div>';
     }

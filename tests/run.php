@@ -79,9 +79,13 @@ $darkTheme = json_decode(file_get_contents($root . '/themes/dark.json'), true);
 $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']"),
-    'release versions' => str_contains($module, "'version' => 1130")
-        && str_contains($inputfield, "'version' => 1130")
-        && str_contains($process, "'version' => 1130"),
+    'release versions' => str_contains($module, "'version' => 1140")
+        && str_contains($inputfield, "'version' => 1140")
+        && str_contains($process, "'version' => 1140"),
+    'admin dashboard prioritizes review workflow' => str_contains($process, 'renderWorkspaceIntro($summary)')
+        && strpos($process, 'renderThreads($threads)') < strpos($process, 'renderTopDemand($top)')
+        && str_contains($process, "class='liora-admin-filters'")
+        && str_contains($process, "class='liora-admin-status-badge is-"),
     'provider model integration API' => str_contains($module, 'public function getProviderModelOptions(): array'),
     'widget initializes without waiting for the whole page' => str_contains($module, '. $script;')
         && str_contains($module, "liora.js?v={\$version}'></script>")

@@ -5,6 +5,18 @@ All notable changes to Liora will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-08-08
+
+### Changed
+
+- Reworked the Insights dashboard around the conversation review queue, with a
+  clearer introduction, prioritized operational metrics, stable status pills,
+  compact conversation actions, and a responsive empty state.
+- Moved repeated demand below the review queue and collapsed lower-priority
+  rows while preserving access to the full bounded report.
+- Improved tablet and mobile hierarchy, table readability, focus states, and
+  overflow behavior throughout the dashboard.
+
 ## [1.13.0] - 2026-08-08
 
 ### Added

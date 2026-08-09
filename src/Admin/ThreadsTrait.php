@@ -10,7 +10,9 @@ trait ProcessLioraThreadsTrait {
     }
 
     protected function renderThreads(array $threads): string {
-        if(!$threads) return '<p>' . $this->_('No conversations match this filter.') . '</p>';
+        if(!$threads) return "<div class='liora-admin-empty'><i class='fa fa-check-circle' aria-hidden='true'></i><div><strong>"
+            . $this->_('Nothing to review here') . '</strong><p>'
+            . $this->_('No conversations match this filter. Choose another status to continue.') . '</p></div></div>';
         $san = $this->wire('sanitizer');
         $csrf = $this->wire('session')->CSRF->renderInput();
         $out = '';
@@ -31,7 +33,8 @@ trait ProcessLioraThreadsTrait {
             $out .= "<article id='liora-thread-{$threadId}' data-liora-thread='{$threadId}' "
                 . "class='uk-card uk-card-default uk-card-body uk-margin liora-admin-thread is-collapsed'>"
                 . "<header class='liora-admin-thread__header'><div class='liora-admin-thread__title'>"
-                . "<div class='liora-admin-thread__eyebrow'><span class='uk-label'>"
+                . "<div class='liora-admin-thread__eyebrow'><span class='liora-admin-status-badge is-"
+                . $san->entities((string)$thread['status']) . "'>"
                 . $san->entities((string)$thread['status']) . "</span><time datetime='"
                 . $san->entities((string)$thread['updated_at']) . "'>"
                 . $san->entities((string)$thread['updated_at']) . "</time></div><h3>{$title}</h3></div>"
@@ -40,16 +43,16 @@ trait ProcessLioraThreadsTrait {
                 . $this->_('messages') . '</span>'
                 . ($location !== '' ? "<small><i class='fa fa-map-marker' aria-hidden='true'></i> "
                     . $san->entities($location) . '</small>' : '') . '</div>'
+                . "<button type='button' class='uk-button uk-button-primary uk-button-small liora-admin-thread__toggle' "
+                . "data-liora-thread-toggle aria-expanded='false' aria-controls='{$bodyId}' "
+                . "data-open-label='" . $san->entities($this->_('Open')) . "' data-close-label='"
+                . $san->entities($this->_('Hide')) . "'><i class='fa fa-chevron-down' aria-hidden='true'></i> <span>"
+                . $this->_('Open') . "</span></button>"
                 . "<button type='button' class='uk-button uk-button-default uk-button-small liora-admin-thread__copy' "
                 . "data-liora-thread-copy data-copy-label='" . $san->entities($this->_('Copy context'))
                 . "' data-copied-label='" . $san->entities($this->_('Copied')) . "'>"
                 . "<i class='fa fa-copy' aria-hidden='true'></i> <span>"
-                . $san->entities($this->_('Copy context')) . '</span></button>'
-                . "<button type='button' class='uk-button uk-button-default uk-button-small liora-admin-thread__toggle' "
-                . "data-liora-thread-toggle aria-expanded='false' aria-controls='{$bodyId}' "
-                . "data-open-label='" . $san->entities($this->_('Open')) . "' data-close-label='"
-                . $san->entities($this->_('Hide')) . "'><i class='fa fa-chevron-down' aria-hidden='true'></i> <span>"
-                . $this->_('Open') . "</span></button></div></header>"
+                . $san->entities($this->_('Copy context')) . '</span></button></div></header>'
                 . "<textarea data-liora-thread-context hidden>{$contextText}</textarea>"
                 . "<div id='{$bodyId}' class='liora-admin-thread__body' data-liora-thread-body hidden>"
                 . ($original !== '' ? "<div class='liora-admin-thread__query'><span>"
