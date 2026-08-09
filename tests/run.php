@@ -2,8 +2,6 @@
 
 $root = dirname(__DIR__);
 $required = [
-    '.github/FUNDING.yml',
-    'AGENTS.md',
     'API.md',
     'CHANGELOG.md',
     'EXAMPLES.md',
@@ -35,6 +33,9 @@ $required = [
     'src/Support/SettingsTrait.php',
     'src/Widget/RenderTrait.php',
 ];
+if(is_dir($root . '/.git')) {
+    array_push($required, '.github/FUNDING.yml', 'AGENTS.md');
+}
 
 foreach($required as $file) {
     if(!is_file($root . '/' . $file)) {
