@@ -8,10 +8,10 @@ trait LioraWidgetRenderTrait {
      * Options: originalQuery, retrievalQuery, context, sourceUrl, pageId, heading, intro,
      * placeholder, thinkingLabel, initialQuestion, autoSubmitInitialQuestion,
      * showWelcomeMessage, welcomeMessage, showSuggestedPrompts,
-     * suggestedPrompts, theme, compact.
+     * suggestedPrompts, theme, compact, enabled, endpoint, streaming, localHistory.
      */
     public function renderWidget(array $options = []): string {
-        if(!(bool)$this->setting('widgetEnabled', true)) return '';
+        if(!(bool)($options['enabled'] ?? $this->setting('widgetEnabled', true))) return '';
 
         $san = $this->wire('sanitizer');
         $page = $this->wire('page');
@@ -56,7 +56,8 @@ trait LioraWidgetRenderTrait {
         }
         $privacyNotice = trim($this->widgetText('privacyNotice'));
         $theme = trim((string)($options['theme'] ?? $this->setting('widgetTheme', 'default')));
-        $endpoint = (string)$this->setting('endpoint', '/agent/');
+        $endpoint = (string)($options['endpoint'] ?? $this->setting('endpoint', '/agent/'));
+        $localHistoryEnabled = (bool)($options['localHistory'] ?? $this->setting('localHistoryEnabled', true));
         $csrfName = $this->wire('session')->CSRF->getTokenName();
         $csrfValue = $this->wire('session')->CSRF->getTokenValue();
         $id = 'liora-' . substr(hash('sha256', microtime(true) . random_int(1, PHP_INT_MAX)), 0, 12);
@@ -85,8 +86,8 @@ trait LioraWidgetRenderTrait {
             'data-auto-submit-initial-question' => $autoSubmitInitialQuestion ? '1' : '0',
             'data-csrf-name' => $csrfName,
             'data-csrf-value' => $csrfValue,
-            'data-stream' => (bool)$this->setting('streamingEnabled', true) ? '1' : '0',
-            'data-local-history' => (bool)$this->setting('localHistoryEnabled', true) ? '1' : '0',
+            'data-stream' => (bool)($options['streaming'] ?? $this->setting('streamingEnabled', true)) ? '1' : '0',
+            'data-local-history' => $localHistoryEnabled ? '1' : '0',
             'data-history-limit' => (string)max(1, (int)$this->setting('localHistoryThreads', 10)),
             'data-show-copy' => (bool)$this->setting('showCopyButton', true) ? '1' : '0',
             'data-show-response-time' => (bool)$this->setting('showResponseTime', true) ? '1' : '0',
@@ -161,7 +162,7 @@ trait LioraWidgetRenderTrait {
             . ((bool)$this->setting('showPrivacyNotice', true) && $privacyNotice !== ''
                 ? "<p class='liora-widget__privacy'>" . $san->entities($privacyNotice) . '</p>'
                 : '')
-            . ((bool)$this->setting('localHistoryEnabled', true)
+            . ($localHistoryEnabled
                 ? "<p>" . $san->entities($this->widgetText('widgetHistoryNotice')) . '</p>'
                 : '')
             . '</div>'

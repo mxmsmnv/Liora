@@ -11,7 +11,7 @@ It is made for editorial, commerce, support, directory, and knowledge sites
 that want an on-page answer experience without hiding provider access,
 retrieval, privacy, or editorial review behind a black box.
 
-**Version:** 1.14.1<br>
+**Version:** 1.15.0<br>
 **Author:** Maxim Semenov<br>
 **Website:** [smnv.org](https://smnv.org)<br>
 **Email:** [maxim@smnv.org](mailto:maxim@smnv.org)
@@ -171,6 +171,37 @@ default, and requires a compatible Squad provider path.
 7. Add the widget, Inputfield, or custom frontend only where the site Blueprint
    calls for it.
 
+### Optional LioraGit shared memory
+
+LioraGit is included in the package but is not installed by Liora itself:
+
+1. Install and configure Atlas with an embedding-capable Squad provider.
+2. Install **Liora Git**; it installs the **Setup → Liora Git Memory** process
+   companion.
+3. Configure one `owner/repository`, branch, private Atlas collection and
+   approved Markdown read paths.
+4. Add a fine-grained `Contents: read` token scoped only to that repository.
+5. Assign `liora-git-sync` to an administrator, synchronize, and test grounded
+   answers before enabling writes.
+6. Optionally add a separate `Contents: write` token scoped to the same
+   repository and assign `liora-git-write` only to participants who may confirm
+   commits.
+7. Give the partner `liora-git-chat`; they use the private ProcessWire workspace
+   without receiving the GitHub credentials or direct repository access.
+
+An authorized participant can prepare a write directly in chat with
+`/remember Title` followed by the note on subsequent lines. The command only
+creates a preview; the participant must still confirm the exact diff.
+
+The participant-facing page uses the ordinary Liora widget via
+`LioraGit::renderMemoryWidget()`. Point a thin, uncached ProcessWire endpoint
+page at `LioraGit::handleMemoryEndpoint()`. Both methods require a logged-in
+ProcessWire user with `liora-git-chat`; the separate admin workspace remains
+available to developers for configuration and diagnostics.
+
+See [the LioraGit API](docs/GIT_API.md) and
+[the repository-format guide](docs/GIT_MEMORY.md).
+
 ## Privacy And Safety
 
 Liora stores conversation content, hashed session ownership, page attribution,
@@ -190,6 +221,13 @@ uninstall only when the stored history should be permanently removed.
 Liora is usable with Squad alone. Atlas, Vox, GeoIP, and live web search are
 capability-detected additions, not hidden requirements.
 
+The package also includes the separately installed optional `LioraGit`
+companion for authenticated shared memory backed by one arbitrary GitHub
+repository. It provides a private admin chat, Atlas indexing with exact Git
+provenance, and confirmed Markdown creation inside one configured directory.
+Normal Liora installations do not require or automatically install it. See
+[Git-backed memory for Liora](docs/GIT_MEMORY.md).
+
 Liora does not own a site's content model, public routes, editorial workflow,
 moderation, commerce, or publishing decisions. The consuming site composes
 those responsibilities.
@@ -200,6 +238,12 @@ those responsibilities.
 - [EXAMPLES.md](EXAMPLES.md) — known-good integration patterns.
 - [docs/INTEGRATION.md](docs/INTEGRATION.md) — detailed widget, Inputfield,
   endpoint, and custom-frontend guidance.
+- [docs/GIT_MEMORY.md](docs/GIT_MEMORY.md) — repository layout and operating
+  rules for the optional LioraGit companion.
+- [docs/GIT_API.md](docs/GIT_API.md) — released LioraGit service methods,
+  permissions, results and current limitations.
+- [docs/git-memory/PROMPTS.md](docs/git-memory/PROMPTS.md) — trusted prompt
+  templates for grounded reads, analysis, proposals and confirmed writes.
 - [AGENTS.md](AGENTS.md) — guidance and safety boundaries for AI agents.
 - [ROADMAP.md](ROADMAP.md) — future product direction, not released behavior.
 - [CHANGELOG.md](CHANGELOG.md) — release notes.

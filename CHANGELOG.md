@@ -5,6 +5,31 @@ All notable changes to Liora will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-08-13
+
+### Added
+
+- Documented the portable repository layout, Markdown metadata contract,
+  permissions, confirmation flow and rollout guidance for the planned optional
+  LioraGit companion.
+- Added server-controlled prompt templates and reusable note, decision, task
+  and source documents for Git-backed shared memory.
+- Added the optional `LioraGit` and `ProcessLioraGit` companion modules with a
+  private authenticated chat, incremental Markdown indexing through Atlas,
+  exact GitHub source provenance, separate read/write/sync permissions, and
+  separately configured GitHub credentials.
+- Added persistent one-hour write proposals with a visible diff, participant
+  ownership, content integrity hash, exact base-commit validation, explicit
+  confirmation, conflict refusal and returned commit SHA.
+
+### Security
+
+- Repository content remains untrusted evidence and cannot alter the trusted
+  LioraGit prompt, credentials, permissions or write policy.
+- Initial writes are restricted to new Markdown files inside one configured
+  directory; deletion, rename, branch, merge, workflow and force-push are not
+  exposed.
+
 ## [1.14.1] - 2026-08-09
 
 ### Changed

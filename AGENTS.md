@@ -94,6 +94,18 @@ responsibility-based traits. Do not replace them with proxy subclasses.
 - `assets/` — widget/admin JavaScript and CSS plus repository illustrations.
 - `themes/` — validated allowlisted widget design tokens.
 - `docs/INTEGRATION.md` — detailed integration guidance.
+- `LioraGit.module.php` — optional GitHub-backed shared-memory service.
+- `ProcessLioraGit.module.php` — authenticated private chat, sync and write
+  confirmation workspace.
+- `LioraGitStore.php` — persistent user-bound, expiring write proposals.
+- `src/Git/` — LioraGit configuration, GitHub transport, indexing, chat,
+  lifecycle and proposal behavior.
+- `docs/GIT_MEMORY.md` — portable repository and safety contract for the
+  optional LioraGit companion; documentation is not proof that it is installed
+  on a particular ProcessWire site.
+- `docs/GIT_API.md` — released LioraGit methods, permissions and limitations.
+- `docs/git-memory/PROMPTS.md` — server-controlled prompt templates for
+  grounded repository reads and confirmed writes.
 - `API.md` — public API contract.
 - `EXAMPLES.md` — known-good examples.
 - `ROADMAP.md` — planned direction, not proof of released capability.

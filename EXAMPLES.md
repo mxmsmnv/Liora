@@ -198,3 +198,33 @@ Use the custom endpoint example in
 - anonymous and authenticated ownership boundaries.
 
 Do not copy Liora's internal SQL or LocalStorage implementation into the site.
+
+## Private LioraGit Memory Page
+
+LioraGit is optional. Feature-detect it and require a ProcessWire account with
+the chat permission:
+
+```php
+<?php namespace ProcessWire;
+
+if(!$modules->isInstalled('LioraGit') || !$user->isLoggedin()
+    || (!$user->isSuperuser() && !$user->hasPermission('liora-git-chat'))) {
+    $session->redirect($config->urls->admin . 'login/');
+}
+
+echo $modules->get('LioraGit')->renderMemoryWidget([
+    'heading' => 'Shared project memory',
+    'intro' => 'Ask what we know, decided or still need to resolve.',
+]);
+```
+
+The configured endpoint page should contain only:
+
+```php
+<?php namespace ProcessWire;
+
+$modules->get('LioraGit')->handleMemoryEndpoint();
+```
+
+Keep both pages private and uncached. The endpoint repeats authentication,
+permission, CSRF and rate-limit checks; page visibility alone is insufficient.

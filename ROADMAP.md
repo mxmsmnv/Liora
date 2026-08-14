@@ -50,6 +50,21 @@ are clear.
 - Provide useful defaults while allowing advanced integrations through hooks.
 - Every feature needs migrations, tests, empty states and failure fallbacks.
 
+### Keep Git-backed memory optional and portable
+
+- `LioraGit` may ship beside Liora as a separately installed companion, but it
+  must not become a requirement for normal Liora conversations.
+- The companion must accept an arbitrary approved GitHub repository rather
+  than assume LQRS paths, schemas or vocabulary.
+- Git remains the durable source of truth; Atlas or another retrieval index is
+  derived and rebuildable.
+- Repository participants authenticate through the host ProcessWire site and
+  do not receive the server's GitHub credentials.
+- Read and write permissions remain separate. Every model-initiated write uses
+  a validated proposal, visible diff and exact confirmation before commit.
+- The portable repository and prompt contract is documented in
+  [docs/GIT_MEMORY.md](docs/GIT_MEMORY.md).
+
 ## Current foundation
 
 Liora already provides:
@@ -286,6 +301,42 @@ present model-generated recommendations as verified facts.
 - [ ] Human handoff adapters for support or sales teams.
 - [ ] Additional frontend renderers maintained separately from the core widget.
 - [ ] Import/export formats for anonymized evaluation datasets.
+
+## Optional companion — Git-backed shared memory
+
+Goal: let authenticated participants use a private Liora conversation as a
+controlled interface to an arbitrary GitHub knowledge repository without
+receiving GitHub or coding-agent access.
+
+- [x] Add a separately installable root `LioraGit.module.php` companion.
+- [x] Configure repository, branch, read paths, write directory and Markdown
+      size limits without exposing tokens to the browser or model.
+- [x] Support fine-grained read credentials and an independently optional,
+      narrower write credential.
+- [x] Incrementally index approved Markdown with repository, path, blob SHA,
+      commit SHA and stable document ID provenance.
+- [x] Add authenticated chat placement and explicit ProcessWire read/write
+      permissions separate from the public visitor endpoint.
+- [x] Answer from current repository evidence with exact source links and
+      visible uncertainty or contradiction handling.
+- [x] Store write proposals server-side, bind them to the participant and
+      Thread, render a diff, and require exact confirmation.
+- [ ] Extend the initial create-only Markdown implementation to update managed
+      Markdown within the write directory; continue to reject delete, rename,
+      branch, merge, workflow and force-push.
+- [x] Detect stale base commits and return a conflict instead of overwriting.
+- [ ] Reindex after a successful commit and preserve the commit result in the
+      conversation audit.
+- [ ] Provide webhook and bounded scheduled synchronization with replay and
+      signature protection.
+- [ ] Test prompt injection in repository text, path traversal, symlinks,
+      oversized files, truncated trees, token scope, role boundaries, stale
+      confirmations and GitHub failure modes.
+
+The format and default prompts are specified in
+[docs/GIT_MEMORY.md](docs/GIT_MEMORY.md) and
+[docs/git-memory/PROMPTS.md](docs/git-memory/PROMPTS.md). Documentation is not
+proof that the companion is released or installed.
 
 These features should not precede feedback, clustering and the editorial queue.
 

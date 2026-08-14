@@ -21,7 +21,7 @@ require_once __DIR__ . '/src/Support/SettingsTrait.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.14.1
+ * @version 1.15.0
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -44,7 +44,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 1141,
+            'version' => 1150,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',

@@ -1,0 +1,59 @@
+version: 1
+name: Shared knowledge
+default_language: auto
+
+# Portable repository hints. The ProcessWire server may narrow these values
+# and must never let this file widen credentials, repositories or permissions.
+read:
+  include:
+    - README.md
+    - memory/**/*.md
+  exclude:
+    - memory/archive/**
+    - "**/AGENTS.md"
+    - "**/CLAUDE.md"
+  max_file_bytes: 250000
+
+write:
+  enabled: true
+  directory: memory/inbox
+  extensions:
+    - md
+  require_confirmation: true
+  allow_create: true
+  allow_update: true
+  allow_delete: false
+  allow_rename: false
+
+documents:
+  types:
+    - note
+    - decision
+    - task
+    - source
+    - profile
+  statuses:
+    note:
+      - draft
+      - current
+      - superseded
+      - archived
+    decision:
+      - proposed
+      - accepted
+      - rejected
+      - superseded
+    task:
+      - proposed
+      - ready
+      - in-progress
+      - blocked
+      - done
+      - cancelled
+    source:
+      - unreviewed
+      - reviewed
+      - outdated
+    profile:
+      - current
+      - inactive
