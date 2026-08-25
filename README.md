@@ -11,7 +11,7 @@ It is made for editorial, commerce, support, directory, and knowledge sites
 that want an on-page answer experience without hiding provider access,
 retrieval, privacy, or editorial review behind a black box.
 
-**Version:** 1.15.0<br>
+**Version:** 1.15.1<br>
 **Author:** Maxim Semenov<br>
 **Website:** [smnv.org](https://smnv.org)<br>
 **Email:** [maxim@smnv.org](mailto:maxim@smnv.org)
@@ -231,6 +231,13 @@ Normal Liora installations do not require or automatically install it. See
 Liora does not own a site's content model, public routes, editorial workflow,
 moderation, commerce, or publishing decisions. The consuming site composes
 those responsibilities.
+
+## MCP Server integration
+
+When the optional first-party MCP Server is installed, Liora contributes the
+read-only `liora_status` tool. It reports safe readiness and aggregate demand
+telemetry without prompts, messages, visitor identifiers, credentials, or
+retrieved context. Remote chat and conversation inspection are not exposed.
 
 ## Documentation
 

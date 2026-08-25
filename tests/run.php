@@ -90,9 +90,9 @@ $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']")
         && !str_contains($module, "'ProcessLioraGit'"),
-    'release versions' => str_contains($module, "'version' => 1150")
-        && str_contains($inputfield, "'version' => 1150")
-        && str_contains($process, "'version' => 1150"),
+    'release versions' => str_contains($module, "'version' => 1151")
+        && str_contains($inputfield, "'version' => 1151")
+        && str_contains($process, "'version' => 1151"),
     'optional Git memory companion' => str_contains($lioraGit, 'class LioraGit extends WireData implements Module, ConfigurableModule')
         && str_contains($lioraGitProcess, 'class ProcessLioraGit extends Process')
         && str_contains($lioraGit, "'installs' => ['ProcessLioraGit']")

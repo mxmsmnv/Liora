@@ -1,7 +1,16 @@
 # Liora Public API
 
-This document describes the public interface of Liora 1.13.0. Verify the
+This document describes the public interface of Liora 1.15.1. Verify the
 installed module version and current ProcessWire site state before using it.
+
+## MCP provider
+
+Module metadata declares `mcpProvider => true`. `mcpProviderInfo()` identifies
+the provider and `mcpTools()` registers `liora_status` with `read` scope and a
+closed empty input schema. `mcpLioraStatus()` returns local provider/model
+readiness plus bounded aggregate counters. It never returns prompts, message
+content, visitor identifiers, retrieved sources, or credentials, and it does
+not call the configured AI provider.
 
 Provider credentials belong to Squad. Do not pass credentials through Liora
 options, templates, endpoint payloads, or browser JavaScript.

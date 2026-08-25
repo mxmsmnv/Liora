@@ -13,6 +13,7 @@ require_once __DIR__ . '/src/Support/PresentationTrait.php';
 require_once __DIR__ . '/src/Support/MessageTrait.php';
 require_once __DIR__ . '/src/Localization/LocalizationTrait.php';
 require_once __DIR__ . '/src/Support/SettingsTrait.php';
+require_once __DIR__ . '/src/McpProviderTrait.php';
 
 /**
  * Liora — conversational assistance and visitor-demand analytics for ProcessWire.
@@ -21,7 +22,7 @@ require_once __DIR__ . '/src/Support/SettingsTrait.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.15.0
+ * @version 1.15.1
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -37,6 +38,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     use LioraMessageTrait;
     use LioraLocalizationTrait;
     use LioraSettingsTrait;
+    use LioraMcpProviderTrait;
 
     protected ?LioraStore $storeInstance = null;
     protected static bool $assetsRendered = false;
@@ -44,12 +46,13 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 1150,
+            'version' => 1151,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',
             'icon' => 'comments',
             'singular' => true,
+            'mcpProvider' => true,
             'autoload' => false,
             'requires' => ['ProcessWire>=3.0.210', 'PHP>=8.1', 'Squad'],
             'installs' => ['InputfieldLiora', 'ProcessLiora'],
