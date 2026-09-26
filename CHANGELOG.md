@@ -5,6 +5,17 @@ All notable changes to Liora will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.2] - 2026-09-26
+
+### Fixed
+
+- Made message deletion use an immediate SQLite write transaction instead of
+  the unsupported `FOR UPDATE` clause while retaining row locks on MySQL and
+  PostgreSQL.
+- Removed MySQL-only target aliases from the thread counter update.
+- Replaced boolean `SUM()` expressions with portable conditional aggregates
+  for PostgreSQL-compatible Insights and MCP telemetry.
+
 ## [1.15.1] - 2026-08-25
 
 ### Added

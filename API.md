@@ -1,6 +1,6 @@
 # Liora Public API
 
-This document describes the public interface of Liora 1.15.1. Verify the
+This document describes the public interface of Liora 1.15.2. Verify the
 installed module version and current ProcessWire site state before using it.
 
 ## MCP provider

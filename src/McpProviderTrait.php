@@ -3,7 +3,7 @@
 /** Secret-free MCP readiness and aggregate demand telemetry. */
 trait LioraMcpProviderTrait {
     public function mcpProviderInfo(): array {
-        return ['name' => 'liora', 'title' => 'Liora', 'version' => '1.15.1'];
+        return ['name' => 'liora', 'title' => 'Liora', 'version' => '1.15.2'];
     }
 
     public function mcpTools(): array {
@@ -22,17 +22,17 @@ trait LioraMcpProviderTrait {
         $summary = [];
         try {
             $threads = $this->wire('database')->query(
-                "SELECT COUNT(*) total, SUM(status='new') new_count, SUM(status='failed') failed, SUM(updated_at >= CURDATE()) today FROM `" . LioraStore::THREADS . "`"
+                "SELECT COUNT(*) total, SUM(CASE WHEN status='new' THEN 1 ELSE 0 END) new_count, SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed, SUM(CASE WHEN updated_at >= CURDATE() THEN 1 ELSE 0 END) today FROM `" . LioraStore::THREADS . "`"
             )->fetch(\PDO::FETCH_ASSOC) ?: [];
             $messages = $this->wire('database')->query(
-                "SELECT COUNT(*) messages, SUM(role='user') questions, COALESCE(SUM(tokens_total),0) tokens, COALESCE(SUM(cached),0) cache_hits, COALESCE(AVG(NULLIF(response_time_ms,0)),0) average_response_ms FROM `" . LioraStore::MESSAGES . "`"
+                "SELECT COUNT(*) messages, SUM(CASE WHEN role='user' THEN 1 ELSE 0 END) questions, COALESCE(SUM(tokens_total),0) tokens, COALESCE(SUM(cached),0) cache_hits, COALESCE(AVG(NULLIF(response_time_ms,0)),0) average_response_ms FROM `" . LioraStore::MESSAGES . "`"
             )->fetch(\PDO::FETCH_ASSOC) ?: [];
             $summary = array_merge($threads, $messages);
         } catch(\Throwable) {
             $summary = [];
         }
         return [
-            'version' => '1.15.1', 'configured' => $this->isConfigured(),
+            'version' => '1.15.2', 'configured' => $this->isConfigured(),
             'provider' => $this->getProvider(), 'model' => $this->getModel(),
             'counts' => array_intersect_key($summary, array_flip(['total', 'new_count', 'failed', 'today', 'messages', 'questions', 'tokens', 'cache_hits', 'average_response_ms'])),
             'content_exposed' => false,

@@ -57,14 +57,14 @@ trait LioraStoreInsightsTrait {
         $this->ensureTable();
         $threads = $this->wire('database')->query(
             "SELECT COUNT(*) total,
-                SUM(status='new') new_count,
-                SUM(status='failed') failed,
-                SUM(updated_at >= CURDATE()) today
+                SUM(CASE WHEN status='new' THEN 1 ELSE 0 END) new_count,
+                SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed,
+                SUM(CASE WHEN updated_at >= CURDATE() THEN 1 ELSE 0 END) today
              FROM `" . self::THREADS . "`"
         )->fetch(\PDO::FETCH_ASSOC) ?: [];
         $messages = $this->wire('database')->query(
             "SELECT COUNT(*) messages,
-                SUM(role='user') questions,
+                SUM(CASE WHEN role='user' THEN 1 ELSE 0 END) questions,
                 COALESCE(SUM(tokens_total),0) tokens,
                 COALESCE(SUM(tokens_input),0) tokens_input,
                 COALESCE(SUM(tokens_output),0) tokens_output,

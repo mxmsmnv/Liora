@@ -2,6 +2,18 @@
 
 trait LioraStoreMessagesTrait {
 
+    private function beginMessageWriteTransaction($database): void {
+        if($database->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $database->exec('BEGIN IMMEDIATE');
+            return;
+        }
+        $database->beginTransaction();
+    }
+
+    private function messageForUpdate($database): string {
+        return $database->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE';
+    }
+
     public function addMessage(int $threadId, string $role, string $content, array $meta = []): int {
         $this->ensureTable();
         if($threadId < 1 || trim($content) === '') return 0;
@@ -67,10 +79,10 @@ trait LioraStoreMessagesTrait {
         if($messageId < 1) return false;
         $this->ensureTable();
         $database = $this->wire('database');
-        $database->beginTransaction();
+        $this->beginMessageWriteTransaction($database);
         try {
             $find = $database->prepare(
-                "SELECT thread_id FROM `" . self::MESSAGES . "` WHERE id=:id FOR UPDATE"
+                "SELECT thread_id FROM `" . self::MESSAGES . "` WHERE id=:id" . $this->messageForUpdate($database)
             );
             $find->execute([':id' => $messageId]);
             $threadId = (int)$find->fetchColumn();
@@ -89,14 +101,14 @@ trait LioraStoreMessagesTrait {
             }
 
             $update = $database->prepare(
-                "UPDATE `" . self::THREADS . "` t
-                 SET t.message_count=(
-                        SELECT COUNT(*) FROM `" . self::MESSAGES . "` m WHERE m.thread_id=t.id
+                "UPDATE `" . self::THREADS . "`
+                 SET message_count=(
+                        SELECT COUNT(*) FROM `" . self::MESSAGES . "` m WHERE m.thread_id=`" . self::THREADS . "`.id
                      ),
-                     t.updated_at=COALESCE((
-                        SELECT MAX(m.created_at) FROM `" . self::MESSAGES . "` m WHERE m.thread_id=t.id
-                     ), t.created_at)
-                 WHERE t.id=:thread_id"
+                     updated_at=COALESCE((
+                        SELECT MAX(m.created_at) FROM `" . self::MESSAGES . "` m WHERE m.thread_id=`" . self::THREADS . "`.id
+                     ), created_at)
+                 WHERE id=:thread_id"
             );
             $update->execute([':thread_id' => $threadId]);
             $database->commit();

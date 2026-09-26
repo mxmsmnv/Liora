@@ -90,9 +90,18 @@ $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']")
         && !str_contains($module, "'ProcessLioraGit'"),
-    'release versions' => str_contains($module, "'version' => 1151")
-        && str_contains($inputfield, "'version' => 1151")
-        && str_contains($process, "'version' => 1151"),
+    'release versions' => str_contains($module, "'version' => 1152")
+        && str_contains($inputfield, "'version' => 1152")
+        && str_contains($process, "'version' => 1152"),
+    'portable database locking' => str_contains($store, "exec('BEGIN IMMEDIATE')")
+        && str_contains($store, "ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE'")
+        && !str_contains($store, 'id=:id FOR UPDATE'),
+    'portable thread counter update' => !str_contains($store, 'SET t.message_count')
+        && str_contains($store, 'WHERE m.thread_id=`" . self::THREADS . "`.id'),
+    'portable conditional aggregates' => !str_contains($store, "SUM(status='")
+        && !str_contains($store, "SUM(role='")
+        && !str_contains($module, "SUM(status='")
+        && !str_contains($module, "SUM(role='"),
     'optional Git memory companion' => str_contains($lioraGit, 'class LioraGit extends WireData implements Module, ConfigurableModule')
         && str_contains($lioraGitProcess, 'class ProcessLioraGit extends Process')
         && str_contains($lioraGit, "'installs' => ['ProcessLioraGit']")
