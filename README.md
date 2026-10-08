@@ -11,7 +11,7 @@ It is made for editorial, commerce, support, directory, and knowledge sites
 that want an on-page answer experience without hiding provider access,
 retrieval, privacy, or editorial review behind a black box.
 
-**Version:** 1.15.2<br>
+**Version:** 1.15.3<br>
 **Author:** Maxim Semenov<br>
 **Website:** [smnv.org](https://smnv.org)<br>
 **Email:** [maxim@smnv.org](mailto:maxim@smnv.org)
@@ -39,7 +39,9 @@ Those responsibilities remain in
 - Supports optional GeoIP country, region, and city enrichment.
 - Supports optional live public search through Squad with normalized citations.
 - Provides adaptive Light/Dark themes backed by validated JSON tokens.
-- Includes safe Markdown rendering and verified same-site links.
+- Includes safe Markdown rendering; links become clickable only when their
+  exact same-site destination is an existing public ProcessWire page supplied
+  by the verified source list.
 - Includes localized widget text and ready-made language presets.
 - Keeps browser history in LocalStorage and restores it only when the visitor
   chooses a previous conversation.

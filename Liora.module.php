@@ -22,7 +22,7 @@ require_once __DIR__ . '/src/McpProviderTrait.php';
  * answer and a structured demand signal. Squad remains responsible for
  * credentials and provider transport.
  *
- * @version 1.15.2
+ * @version 1.15.3
  */
 class Liora extends WireData implements Module, ConfigurableModule {
 
@@ -46,7 +46,7 @@ class Liora extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo(): array {
         return [
             'title' => 'Liora',
-            'version' => 1152,
+            'version' => 1153,
             'summary' => 'AI answer CTA with optional Atlas RAG, Vox community context and content-demand analytics.',
             'author' => 'Maxim Semenov',
             'href' => 'https://github.com/mxmsmnv/Liora',

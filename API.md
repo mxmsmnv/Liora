@@ -1,6 +1,6 @@
 # Liora Public API
 
-This document describes the public interface of Liora 1.15.2. Verify the
+This document describes the public interface of Liora 1.15.3. Verify the
 installed module version and current ProcessWire site state before using it.
 
 ## MCP provider
@@ -253,6 +253,9 @@ The endpoint:
 - records page/referrer attribution;
 - optionally adds Atlas, Vox, GeoIP, and web-search context;
 - supports normal JSON and newline-delimited streamed responses.
+- validates source destinations against existing public ProcessWire pages;
+- converts unverified model-authored Markdown links to plain labels and removes
+  model-authored numbered source markers in both normal and streamed answers.
 
 Common request fields:
 
@@ -293,7 +296,7 @@ review.
 
 ## Hooks
 
-Liora 1.13.0 does not document a stable public hook API. Do not invent hook
+Liora 1.15.3 does not document a stable public hook API. Do not invent hook
 names. Use the public methods above or open an issue for a required extension
 point.
 
@@ -315,7 +318,7 @@ to tables.
 
 ## Compatibility And Errors
 
-Liora 1.13.0 requires ProcessWire 3.0.210+, PHP 8.1+, and Squad. Optional
+Liora 1.15.3 requires ProcessWire 3.0.210+, PHP 8.1+, and Squad. Optional
 capabilities must be feature-detected.
 
 Atlas, Vox, GeoIP, live search, streaming, and provider metadata can be absent

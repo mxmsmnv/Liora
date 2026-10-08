@@ -90,9 +90,9 @@ $checks = [
     'Liora class' => str_contains($module, 'class Liora extends WireData implements Module, ConfigurableModule'),
     'submodule install list' => str_contains($module, "'installs' => ['InputfieldLiora', 'ProcessLiora']")
         && !str_contains($module, "'ProcessLioraGit'"),
-    'release versions' => str_contains($module, "'version' => 1152")
-        && str_contains($inputfield, "'version' => 1152")
-        && str_contains($process, "'version' => 1152"),
+    'release versions' => str_contains($module, "'version' => 1153")
+        && str_contains($inputfield, "'version' => 1153")
+        && str_contains($process, "'version' => 1153"),
     'portable database locking' => str_contains($store, "exec('BEGIN IMMEDIATE')")
         && str_contains($store, "ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE'")
         && !str_contains($store, 'id=:id FOR UPDATE'),
@@ -210,9 +210,11 @@ $checks = [
         && !str_contains($javascript, "submit.textContent = '…'"),
     'safe structured answer rendering' => str_contains($javascript, 'const inlineMarkdown')
         && str_contains($javascript, 'const safeMarkdown')
-        && str_contains($javascript, 'liora-message__citation')
         && str_contains($javascript, 'LIORA_INTERNAL_LINK_')
         && str_contains($javascript, 'liora-message__link')
+        && str_contains($javascript, 'verifiedSourceUrls')
+        && str_contains($javascript, 'source.verified === true')
+        && str_contains($javascript, "html.replace(/\\s*\\[Source\\s+\\d+\\]/gi, '')")
         && str_contains($javascript, 'escapeHtml(codeLines')
         && str_contains($widgetCss, 'width:fit-content')
         && str_contains($widgetCss, '.liora-message__content h3'),
@@ -220,7 +222,13 @@ $checks = [
         && str_contains($module, "attr('name', 'externalLinksPrompt')")
         && str_contains($module, 'defaultExternalLinksPrompt()')
         && str_contains($module, 'restrictExternalLinks(')
-        && str_contains($module, 'isSameSiteUrl('),
+        && str_contains($module, 'isSameSiteUrl(')
+        && str_contains($module, 'normalizeVerifiedSources(')
+        && str_contains($module, 'verifiedSourceUrl(')
+        && str_contains($module, 'restrictAnswerToVerifiedSources(')
+        && str_contains($module, 'verifiedSourcesPrompt(')
+        && str_contains($module, 'Never construct, infer, autocomplete, translate, or guess a URL')
+        && str_contains($module, "'verified' => true"),
     'JSON widget theme' => is_array($theme) && !empty($theme['variables']['messagesMaxHeight'])
         && str_contains($module, 'themeStyle('),
     'adaptive dark widget theme' => ($theme['mode'] ?? '') === 'auto'

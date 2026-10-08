@@ -5,6 +5,18 @@ All notable changes to Liora will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.3] - 2026-10-08
+
+### Security
+
+- Validate every assistant Markdown destination against the exact server-side
+  source list and an existing public ProcessWire page before making it
+  clickable; unverified destinations now render as plain labels.
+- Treat the module-rendered source list as authoritative and remove unverified
+  model-authored `[Source N]` markers from normal and streamed answers.
+- Keep streamed partial output fail-closed in the browser until the final
+  verified source list arrives.
+
 ## [1.15.2] - 2026-09-26
 
 ### Fixed

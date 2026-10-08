@@ -3,7 +3,7 @@
 /** Secret-free MCP readiness and aggregate demand telemetry. */
 trait LioraMcpProviderTrait {
     public function mcpProviderInfo(): array {
-        return ['name' => 'liora', 'title' => 'Liora', 'version' => '1.15.2'];
+        return ['name' => 'liora', 'title' => 'Liora', 'version' => '1.15.3'];
     }
 
     public function mcpTools(): array {
@@ -32,7 +32,7 @@ trait LioraMcpProviderTrait {
             $summary = [];
         }
         return [
-            'version' => '1.15.2', 'configured' => $this->isConfigured(),
+            'version' => '1.15.3', 'configured' => $this->isConfigured(),
             'provider' => $this->getProvider(), 'model' => $this->getModel(),
             'counts' => array_intersect_key($summary, array_flip(['total', 'new_count', 'failed', 'today', 'messages', 'questions', 'tokens', 'cache_hits', 'average_response_ms'])),
             'content_exposed' => false,

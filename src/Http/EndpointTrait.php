@@ -149,7 +149,8 @@ trait LioraEndpointTrait {
         if($vox['context'] !== '') {
             $systemPrompt .= "\n\n" . $vox['context'];
         }
-        $answerSources = array_merge($rag['sources'], $vox['sources']);
+        $answerSources = $this->normalizeVerifiedSources(array_merge($rag['sources'], $vox['sources']));
+        $systemPrompt .= "\n\n" . $this->verifiedSourcesPrompt($answerSources);
         $technicalContext = [
             'context' => [
                 'page_id' => (int)$pageContext['page_id'],
@@ -212,9 +213,11 @@ trait LioraEndpointTrait {
             $this->sendJson(['success' => false, 'error' => $error, 'thread_id' => $thread['public_id']], 502);
         }
 
-        $answer = (string)$result['content'];
         $data = (array)($result['data'] ?? []);
-        $answerSources = $this->mergeSources($answerSources, (array)($data['sources'] ?? []));
+        $answerSources = $this->normalizeVerifiedSources(
+            $this->mergeSources($answerSources, (array)($data['sources'] ?? []))
+        );
+        $answer = $this->restrictAnswerToVerifiedSources((string)$result['content'], $answerSources);
         $data = $this->withEndpointTechnicalMetadata(
             $data,
             $technicalContext,
@@ -268,9 +271,11 @@ trait LioraEndpointTrait {
             exit;
         }
 
-        $answer = (string)$result['content'];
         $data = (array)($result['data'] ?? []);
-        $ragSources = $this->mergeSources($ragSources, (array)($data['sources'] ?? []));
+        $ragSources = $this->normalizeVerifiedSources(
+            $this->mergeSources($ragSources, (array)($data['sources'] ?? []))
+        );
+        $answer = $this->restrictAnswerToVerifiedSources((string)$result['content'], $ragSources);
         $data = $this->withEndpointTechnicalMetadata(
             $data,
             $technicalContext,

@@ -10,23 +10,45 @@
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
 
-    const inlineMarkdown = value => {
+    const verifiedSourceUrls = sources => {
+        const urls = new Set();
+        if(!Array.isArray(sources)) return urls;
+        sources.forEach(source => {
+            if(!source || source.verified !== true) return;
+            try {
+                const parsed = new URL(String(source.url || ''), location.origin);
+                if(parsed.origin === location.origin) urls.add(parsed.pathname + parsed.search + parsed.hash);
+            } catch {
+                // Invalid source URLs stay unavailable.
+            }
+        });
+        return urls;
+    };
+
+    const inlineMarkdown = (value, sources = []) => {
         const links = [];
+        const allowedUrls = verifiedSourceUrls(sources);
         const withLinkTokens = String(value).replace(
-            /\[([^\]\n]{1,180})\]\((\/(?!\/)[^)\s<>"']{1,500})\)/g,
+            /\[([^\]\n]{1,180})\]\(([^)\s<>"']{1,500})\)/g,
             (match, label, url) => {
+                let verifiedUrl = '';
+                try {
+                    const parsed = new URL(url, location.origin);
+                    const candidate = parsed.pathname + parsed.search + parsed.hash;
+                    if(parsed.origin === location.origin && allowedUrls.has(candidate)) verifiedUrl = candidate;
+                } catch {
+                    // Unverified destinations are rendered as plain labels.
+                }
+                if(!verifiedUrl) return label;
                 const token = `@@LIORA_INTERNAL_LINK_${links.length}@@`;
-                links.push({token, label, url});
+                links.push({token, label, url: verifiedUrl});
                 return token;
             }
         );
         let html = escapeHtml(withLinkTokens);
         html = html.replace(/`([^`]+?)`/g, '<code>$1</code>');
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(
-            /\[Source\s+(\d+)\]/gi,
-            '<sup class="liora-message__citation" aria-label="Source $1">[$1]</sup>'
-        );
+        html = html.replace(/\s*\[Source\s+\d+\]/gi, '');
         links.forEach(link => {
             html = html.replaceAll(
                 link.token,
@@ -36,7 +58,7 @@
         return html;
     };
 
-    const safeMarkdown = value => {
+    const safeMarkdown = (value, sources = []) => {
         const lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
         const blocks = [];
         let paragraph = [];
@@ -47,12 +69,12 @@
 
         const flushParagraph = () => {
             if(!paragraph.length) return;
-            blocks.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`);
+            blocks.push(`<p>${inlineMarkdown(paragraph.join(' '), sources)}</p>`);
             paragraph = [];
         };
         const flushList = () => {
             if(!listItems.length || !listType) return;
-            blocks.push(`<${listType}>${listItems.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</${listType}>`);
+            blocks.push(`<${listType}>${listItems.map(item => `<li>${inlineMarkdown(item, sources)}</li>`).join('')}</${listType}>`);
             listType = '';
             listItems = [];
         };
@@ -85,7 +107,7 @@
                 flushParagraph();
                 flushList();
                 const level = Math.min(5, heading[1].length + 2);
-                blocks.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+                blocks.push(`<h${level}>${inlineMarkdown(heading[2], sources)}</h${level}>`);
                 return;
             }
 
@@ -126,23 +148,23 @@
         });
     };
 
-    const addMessage = (container, role, text = '', scroll = 'bottom') => {
+    const addMessage = (container, role, text = '', scroll = 'bottom', sources = []) => {
         const item = document.createElement('div');
         item.className = `liora-message liora-message--${role}`;
         item.dataset.messageText = text;
         const content = document.createElement('div');
         content.className = 'liora-message__content';
-        content.innerHTML = safeMarkdown(text);
+        content.innerHTML = safeMarkdown(text, sources);
         item.append(content);
         container.append(item);
         if(scroll === 'bottom') scrollToBottom(container);
         return item;
     };
 
-    const updateMessage = (item, text) => {
+    const updateMessage = (item, text, sources = []) => {
         item.dataset.messageText = text;
         const content = item.querySelector('.liora-message__content');
-        if(content) content.innerHTML = safeMarkdown(text);
+        if(content) content.innerHTML = safeMarkdown(text, sources);
     };
 
     const copyText = async text => {
@@ -220,7 +242,7 @@
                 const rawUrl = String(source.url || '').trim();
                 if(rawUrl) {
                     const parsed = new URL(rawUrl, location.origin);
-                    if(parsed.origin === location.origin) url = parsed.pathname + parsed.search + parsed.hash;
+                    if(source.verified === true && parsed.origin === location.origin) url = parsed.pathname + parsed.search + parsed.hash;
                 }
             } catch {
                 // A source title remains useful when its URL is invalid.
@@ -382,7 +404,7 @@
                     if(suggestions) suggestions.hidden = true;
                     let lastMessage = null;
                     thread.messages.forEach(message => {
-                        lastMessage = addMessage(messages, message.role, message.content, 'none');
+                        lastMessage = addMessage(messages, message.role, message.content, 'none', message.sources || []);
                         if(message.role === 'assistant') addSources(lastMessage, message.sources, sourcesLabel);
                         addMessageMeta(lastMessage, message, messageMetaOptions);
                     });
@@ -557,11 +579,11 @@
                             if(data.type === 'error') throw new Error(data.error || errorLabel);
                             if(data.type === 'done') {
                                 if(data.thread_id) currentThread.id = data.thread_id;
+                                if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
                                 if(typeof data.response === 'string' && data.response.trim()) {
                                     assistantText = data.response;
-                                    updateMessage(assistantItem, assistantText);
+                                    updateMessage(assistantItem, assistantText, ragSources);
                                 }
-                                if(Array.isArray(data.rag_sources)) ragSources = data.rag_sources;
                                 tokensUsed = Math.max(0, Number(data.tokens_used || 0));
                             }
                         }
@@ -579,7 +601,7 @@
                     tokensUsed = Math.max(0, Number(data.tokens_used || 0));
                     assistantText = data.response || '';
                     assistantItem.classList.remove('liora-message--thinking');
-                    updateMessage(assistantItem, assistantText);
+                    updateMessage(assistantItem, assistantText, ragSources);
                     addSources(assistantItem, ragSources, sourcesLabel);
                     scrollToMessageStart(widget, messages, assistantItem);
                 }
